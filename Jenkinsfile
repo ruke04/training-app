@@ -21,17 +21,26 @@ pipeline {
         
         stage('Build Docker Images') {
             steps {
+                echo 'Ensuring docker-compose alias exists...'
+                sh '''
+                    # If docker compose exists but docker-compose does not, create alias
+                    if command -v docker compose >/dev/null 2>&1 && ! command -v docker-compose >/dev/null 2>&1; then
+                        echo "Creating docker-compose symlink..."
+                        sudo ln -sf /usr/libexec/docker/cli-plugins/docker-compose /usr/local/bin/docker-compose 2>/dev/null \
+                        || ln -sf /usr/libexec/docker/cli-plugins/docker-compose /usr/local/bin/docker-compose || true
+                        chmod +x /usr/local/bin/docker-compose || true
+                    fi
+                '''
+
                 echo 'Building Docker images...'
                 sh '''
-                    # Try docker compose (plugin) first, fallback to docker-compose
                     if command -v docker-compose &> /dev/null; then
                         docker-compose build --no-cache
                     elif docker compose version &> /dev/null; then
                         docker compose build --no-cache
                     else
-                        # Install docker-compose if neither works
-                        pip3 install docker-compose --break-system-packages || true
-                        docker-compose build --no-cache
+                        echo "❌ No docker compose available"
+                        exit 1
                     fi
                 '''
             }
@@ -39,21 +48,16 @@ pipeline {
         
         stage('Start Services') {
             steps {
-                echo 'Starting services with docker-compose...'
+                echo 'Starting services...'
                 sh '''
-                    # Try docker compose (plugin) first, fallback to docker-compose
                     if command -v docker-compose &> /dev/null; then
                         docker-compose up -d
                         sleep 10
                         docker-compose ps
-                    elif docker compose version &> /dev/null; then
+                    else
                         docker compose up -d
                         sleep 10
                         docker compose ps
-                    else
-                        docker-compose up -d
-                        sleep 10
-                        docker-compose ps
                     fi
                 '''
             }
@@ -63,27 +67,18 @@ pipeline {
             steps {
                 echo 'Checking service health...'
                 sh '''
-                    # Wait for backend to be ready
                     for i in {1..30}; do
-                        if curl -f http://localhost:8000/api-docs > /dev/null 2>&1; then
-                            echo "Backend is ready!"
-                            break
-                        fi
+                        if curl -sf http://localhost:8000/api-docs; then break; fi
                         echo "Waiting for backend... ($i/30)"
                         sleep 2
                     done
                     
-                    # Wait for frontend to be ready
                     for i in {1..30}; do
-                        if curl -f http://localhost:8080 > /dev/null 2>&1; then
-                            echo "Frontend is ready!"
-                            break
-                        fi
+                        if curl -sf http://localhost:8080; then break; fi
                         echo "Waiting for frontend... ($i/30)"
                         sleep 2
                     done
                     
-                    # Verify services
                     curl -i http://localhost:8000/api-docs || exit 1
                     curl -i http://localhost:8080 || exit 1
                 '''
@@ -94,37 +89,18 @@ pipeline {
             steps {
                 echo 'Running Robot Framework tests...'
                 sh '''
-                    # Install Robot Framework Browser if not already installed
                     pip3 install robotframework-browser --quiet || true
-                    
-                    # Initialize browser if needed
                     rfbrowser init --skip-browsers || true
-                    
-                    # Run tests (headless mode)
                     HEADLESS=True robot -d results robot-tests/tests || true
                 '''
             }
             post {
                 always {
-                    // Archive test results
-                    robot(
-                        outputPath: 'results',
-                        logFileName: 'log.html',
-                        reportFileName: 'report.html',
-                        outputFileName: 'output.xml',
-                        passThreshold: 80.0,
-                        unstableThreshold: 50.0,
-                        onlyCritical: false
-                    )
-                    
-                    // Publish test results
+                    robot outputPath: 'results'
                     publishHTML([
-                        allowMissing: false,
-                        alwaysLinkToLastBuild: true,
-                        keepAll: true,
                         reportDir: 'results',
                         reportFiles: 'report.html',
-                        reportName: 'Robot Framework Test Report'
+                        reportName: 'Robot Tests'
                     ])
                 }
             }
@@ -134,41 +110,18 @@ pipeline {
             steps {
                 echo 'Running API tests...'
                 sh '''
-                    # Test registration
                     REGISTER_RESPONSE=$(curl -s -w "\\n%{http_code}" -X POST http://localhost:8000/register \
                         -H "Content-Type: application/json" \
                         -d '{"username":"jenkins-test","password":"test123"}')
                     
-                    HTTP_CODE=$(echo "$REGISTER_RESPONSE" | tail -n1)
-                    if [ "$HTTP_CODE" != "201" ] && [ "$HTTP_CODE" != "409" ]; then
-                        echo "Registration failed with code: $HTTP_CODE"
-                        exit 1
-                    fi
+                    CODE=$(echo "$REGISTER_RESPONSE" | tail -n1)
+                    if [ "$CODE" != "201" ] && [ "$CODE" != "409" ]; then exit 1; fi
                     
-                    # Extract token if registration was successful
-                    if [ "$HTTP_CODE" == "201" ]; then
+                    if [ "$CODE" == "201" ]; then
                         TOKEN=$(echo "$REGISTER_RESPONSE" | head -n1 | jq -r '.token')
-                        echo "Token: ${TOKEN:0:20}..."
-                        
-                        # Test /me endpoint with JWT
-                        ME_RESPONSE=$(curl -s -w "\\n%{http_code}" http://localhost:8000/me \
-                            -H "Authorization: Bearer $TOKEN")
-                        ME_CODE=$(echo "$ME_RESPONSE" | tail -n1)
-                        if [ "$ME_CODE" != "200" ]; then
-                            echo "/me endpoint failed with code: $ME_CODE"
-                            exit 1
-                        fi
-                        
-                        # Test Basic Auth
-                        ME_BASIC=$(curl -s -w "\\n%{http_code}" -u jenkins-test:test123 http://localhost:8000/me)
-                        ME_BASIC_CODE=$(echo "$ME_BASIC" | tail -n1)
-                        if [ "$ME_BASIC_CODE" != "200" ]; then
-                            echo "Basic Auth failed with code: $ME_BASIC_CODE"
-                            exit 1
-                        fi
+                        curl -f http://localhost:8000/me -H "Authorization: Bearer $TOKEN" || exit 1
+                        curl -f -u jenkins-test:test123 http://localhost:8000/me || exit 1
                     fi
-                    
-                    echo "API tests passed!"
                 '''
             }
         }
@@ -178,24 +131,15 @@ pipeline {
         always {
             echo 'Cleaning up...'
             sh '''
-                # Use docker-compose or docker compose
                 if command -v docker-compose &> /dev/null; then
                     docker-compose down -v || true
                 else
                     docker compose down -v || true
                 fi
-                docker system prune -f || true
             '''
         }
-        success {
-            echo 'Pipeline succeeded! ✅'
-        }
-        failure {
-            echo 'Pipeline failed! ❌'
-        }
-        unstable {
-            echo 'Pipeline is unstable! ⚠️'
-        }
+        success { echo 'Pipeline succeeded! ✅' }
+        failure { echo 'Pipeline failed! ❌' }
+        unstable { echo 'Pipeline unstable ⚠️' }
     }
 }
-
