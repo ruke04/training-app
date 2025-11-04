@@ -96,6 +96,30 @@ robot -d results robot-tests/tests
 ```
 The included test `web_login_test.robot` registers a new user, logs in, and fetches profile using the UI.
 
+## Jenkins CI/CD
+
+This project includes a Jenkins pipeline for continuous integration and deployment.
+
+### Quick Start with Jenkins
+
+1. **Install required Jenkins plugins:**
+   - Robot Framework Plugin
+   - HTML Publisher Plugin
+   - Docker Pipeline
+
+2. **Create a new Pipeline job** in Jenkins:
+   - Point to your repository
+   - Use the included `Jenkinsfile`
+
+3. **Run the pipeline** - it will:
+   - Build Docker images
+   - Start services
+   - Run Robot Framework tests
+   - Test API endpoints
+   - Publish test results
+
+See [JENKINS.md](JENKINS.md) for detailed setup instructions and configuration options.
+
 ## Troubleshooting
 - If the browser console shows CORS errors, set env var `CORS_ORIGIN=http://localhost:8080` for the backend.
 - Ensure ports aren’t in use: backend `8000`, frontend `8080`.
