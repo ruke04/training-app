@@ -23,7 +23,16 @@ pipeline {
             steps {
                 echo 'Building Docker images...'
                 sh '''
-                    docker compose build --no-cache
+                    # Try docker compose (plugin) first, fallback to docker-compose
+                    if command -v docker-compose &> /dev/null; then
+                        docker-compose build --no-cache
+                    elif docker compose version &> /dev/null; then
+                        docker compose build --no-cache
+                    else
+                        # Install docker-compose if neither works
+                        pip3 install docker-compose --break-system-packages || true
+                        docker-compose build --no-cache
+                    fi
                 '''
             }
         }
@@ -32,10 +41,20 @@ pipeline {
             steps {
                 echo 'Starting services with docker-compose...'
                 sh '''
-                    docker compose up -d
-                    echo "Waiting for services to be healthy..."
-                    sleep 10
-                    docker compose ps
+                    # Try docker compose (plugin) first, fallback to docker-compose
+                    if command -v docker-compose &> /dev/null; then
+                        docker-compose up -d
+                        sleep 10
+                        docker-compose ps
+                    elif docker compose version &> /dev/null; then
+                        docker compose up -d
+                        sleep 10
+                        docker compose ps
+                    else
+                        docker-compose up -d
+                        sleep 10
+                        docker-compose ps
+                    fi
                 '''
             }
         }
@@ -159,7 +178,12 @@ pipeline {
         always {
             echo 'Cleaning up...'
             sh '''
-                docker compose down -v || true
+                # Use docker-compose or docker compose
+                if command -v docker-compose &> /dev/null; then
+                    docker-compose down -v || true
+                else
+                    docker compose down -v || true
+                fi
                 docker system prune -f || true
             '''
         }
