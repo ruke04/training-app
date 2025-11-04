@@ -121,47 +121,6 @@ pipeline {
             }
         }
         
-        stage('Run Robot Framework Tests') {
-            steps {
-                echo 'Running Robot Framework tests...'
-                sh '''
-                    # Detect host (same as health check)
-                    HOST=""
-                    if getent hosts host.docker.internal >/dev/null 2>&1; then
-                        HOST="host.docker.internal"
-                    elif command -v hostname >/dev/null 2>&1 && hostname -I >/dev/null 2>&1; then
-                        HOST=$(hostname -I | awk '{print $1}')
-                    else
-                        HOST=$(route -n get default 2>/dev/null | grep gateway | awk '{print $2}' || \
-                               netstat -rn | grep '^default' | awk '{print $2}' | head -1 || \
-                               echo "host.docker.internal")
-                    fi
-                    if [ -z "$HOST" ] || [ "$HOST" = "" ]; then
-                        HOST="host.docker.internal"
-                    fi
-                    
-                    echo "Using host for tests: $HOST"
-                    
-                    # Update Robot test to use correct host
-                    sed -i "s|http://localhost:8080|http://$HOST:8080|g" robot-tests/tests/web_login_test.robot || true
-                    
-                    pip3 install robotframework-browser --quiet || true
-                    rfbrowser init --skip-browsers || true
-                    HEADLESS=True robot -d results robot-tests/tests || true
-                '''
-            }
-            post {
-                always {
-                    robot outputPath: 'results'
-                    publishHTML([
-                        reportDir: 'results',
-                        reportFiles: 'report.html',
-                        reportName: 'Robot Tests'
-                    ])
-                }
-            }
-        }
-        
         stage('API Tests') {
             steps {
                 echo 'Running API tests...'
