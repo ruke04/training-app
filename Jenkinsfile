@@ -67,34 +67,54 @@ pipeline {
             steps {
                 echo 'Checking service health...'
                 sh '''
-                    # Use host.docker.internal for Docker Desktop (Mac/Windows) or detect host IP
-                    if ping -c 1 host.docker.internal >/dev/null 2>&1; then
+                    # Detect host - try host.docker.internal first (Docker Desktop)
+                    HOST=""
+                    if getent hosts host.docker.internal >/dev/null 2>&1; then
                         HOST="host.docker.internal"
+                    elif command -v hostname >/dev/null 2>&1 && hostname -I >/dev/null 2>&1; then
+                        # Try to get host IP from hostname
+                        HOST=$(hostname -I | awk '{print $1}')
                     else
-                        # For Linux, get Docker host IP from gateway
-                        HOST=$(ip route | grep default | awk '{print $3}' || echo "localhost")
+                        # Fallback: use gateway IP from route or default
+                        HOST=$(route -n get default 2>/dev/null | grep gateway | awk '{print $2}' || \
+                               netstat -rn | grep '^default' | awk '{print $2}' | head -1 || \
+                               echo "host.docker.internal")
+                    fi
+                    
+                    # Final fallback if still empty
+                    if [ -z "$HOST" ] || [ "$HOST" = "" ]; then
+                        HOST="host.docker.internal"
                     fi
                     
                     echo "Using host: $HOST"
                     
+                    # Test if host is reachable
+                    if ! curl -sf --connect-timeout 2 http://$HOST:8000 >/dev/null 2>&1 && \
+                       ! curl -sf --connect-timeout 2 http://$HOST:8080 >/dev/null 2>&1; then
+                        echo "⚠️  Warning: $HOST may not be reachable, trying alternative..."
+                        # Try localhost as last resort (might work if services are on same network)
+                        HOST="localhost"
+                    fi
+                    
                     for i in {1..30}; do
-                        if curl -sf http://$HOST:8000/api-docs >/dev/null 2>&1; then
+                        if curl -sf --connect-timeout 5 http://$HOST:8000/api-docs >/dev/null 2>&1; then
                             echo "Backend is ready!"
                             break
                         fi
-                        echo "Waiting for backend... ($i/30)"
+                        echo "Waiting for backend on $HOST:8000... ($i/30)"
                         sleep 2
                     done
                     
                     for i in {1..30}; do
-                        if curl -sf http://$HOST:8080 >/dev/null 2>&1; then
+                        if curl -sf --connect-timeout 5 http://$HOST:8080 >/dev/null 2>&1; then
                             echo "Frontend is ready!"
                             break
                         fi
-                        echo "Waiting for frontend... ($i/30)"
+                        echo "Waiting for frontend on $HOST:8080... ($i/30)"
                         sleep 2
                     done
                     
+                    echo "Testing final connectivity..."
                     curl -i http://$HOST:8000/api-docs || exit 1
                     curl -i http://$HOST:8080 || exit 1
                 '''
@@ -106,10 +126,18 @@ pipeline {
                 echo 'Running Robot Framework tests...'
                 sh '''
                     # Detect host (same as health check)
-                    if ping -c 1 host.docker.internal >/dev/null 2>&1; then
+                    HOST=""
+                    if getent hosts host.docker.internal >/dev/null 2>&1; then
                         HOST="host.docker.internal"
+                    elif command -v hostname >/dev/null 2>&1 && hostname -I >/dev/null 2>&1; then
+                        HOST=$(hostname -I | awk '{print $1}')
                     else
-                        HOST=$(ip route | grep default | awk '{print $3}' || echo "localhost")
+                        HOST=$(route -n get default 2>/dev/null | grep gateway | awk '{print $2}' || \
+                               netstat -rn | grep '^default' | awk '{print $2}' | head -1 || \
+                               echo "host.docker.internal")
+                    fi
+                    if [ -z "$HOST" ] || [ "$HOST" = "" ]; then
+                        HOST="host.docker.internal"
                     fi
                     
                     echo "Using host for tests: $HOST"
@@ -138,11 +166,19 @@ pipeline {
             steps {
                 echo 'Running API tests...'
                 sh '''
-                    # Use same host as health check
-                    if ping -c 1 host.docker.internal >/dev/null 2>&1; then
+                    # Use same host detection as health check
+                    HOST=""
+                    if getent hosts host.docker.internal >/dev/null 2>&1; then
                         HOST="host.docker.internal"
+                    elif command -v hostname >/dev/null 2>&1 && hostname -I >/dev/null 2>&1; then
+                        HOST=$(hostname -I | awk '{print $1}')
                     else
-                        HOST=$(ip route | grep default | awk '{print $3}' || echo "localhost")
+                        HOST=$(route -n get default 2>/dev/null | grep gateway | awk '{print $2}' || \
+                               netstat -rn | grep '^default' | awk '{print $2}' | head -1 || \
+                               echo "host.docker.internal")
+                    fi
+                    if [ -z "$HOST" ] || [ "$HOST" = "" ]; then
+                        HOST="host.docker.internal"
                     fi
                     
                     REGISTER_RESPONSE=$(curl -s -w "\\n%{http_code}" -X POST http://$HOST:8000/register \
