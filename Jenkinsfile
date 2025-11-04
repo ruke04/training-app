@@ -159,14 +159,8 @@ pipeline {
     
     post {
         always {
-            echo 'Cleaning up...'
-            sh '''
-                if command -v docker-compose &> /dev/null; then
-                    docker-compose down -v || true
-                else
-                    docker compose down -v || true
-                fi
-            '''
+            echo 'Pipeline completed. Services are still running.'
+            echo 'To stop services manually, run: docker compose down'
         }
         success { echo 'Pipeline succeeded! ✅' }
         failure { echo 'Pipeline failed! ❌' }
