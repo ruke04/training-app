@@ -30,7 +30,7 @@ services:
     ports:
       - "8000:8000"
     volumes:
-      - ./frontend/efewalicomms-website:/app/protected_site:ro
+      - ./frontend/hidden-site:/app/protected_site:ro
 
   frontend:
     build: ./frontend

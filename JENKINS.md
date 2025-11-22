@@ -106,7 +106,7 @@ The Jenkins pipeline includes:
    - Detects host automatically (uses `host.docker.internal` for Docker Desktop)
    - Checks backend at port 8000
    - Checks frontend at port 8080
-5. **API Tests**: Tests API endpoints (registration, login, JWT, Basic Auth)
+5. **API Tests**: Tests API endpoints (registration, login, logout, JWT, Basic Auth)
 6. **Post Actions**: Services remain running after build completion
 
 **Note**: Services are not automatically stopped after the build. They remain running for further testing or debugging.
@@ -267,7 +267,7 @@ The included `Jenkinsfile` is a complete CI/CD pipeline that:
 - **Automatic host detection**: Uses `host.docker.internal` for Docker Desktop or detects gateway IP
 - **Docker Compose compatibility**: Works with both `docker-compose` and `docker compose`
 - **Services persist**: Services remain running after build for manual testing
-- **Comprehensive API tests**: Tests registration, JWT auth, and Basic Auth
+- **Comprehensive API tests**: Tests registration, login, logout, JWT auth, and Basic Auth
 
 ## Stopping Jenkins
 

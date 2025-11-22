@@ -121,10 +121,24 @@ function logout() {
     try {
         localStorage.removeItem('token')
     } catch (_) {}
-    document.getElementById('result').innerText = ''
-    document.getElementById('register_result').innerText = ''
-    document.getElementById('me').innerText = ''
-    updateProfileDisplay(null)
+    // Clear the auth_token cookie by loading logout endpoint in hidden iframe
+    // This ensures the cookie is cleared in the browser's context for localhost:8000
+    const iframe = document.createElement('iframe')
+    iframe.style.display = 'none'
+    iframe.style.width = '0'
+    iframe.style.height = '0'
+    iframe.src = 'http://localhost:8000/logout'
+    document.body.appendChild(iframe)
+    
+    // Remove iframe after it loads
+    iframe.onload = function() {
+        setTimeout(() => {
+            if (iframe.parentNode) {
+                iframe.parentNode.removeChild(iframe)
+            }
+        }, 500)
+    }
+    
     showNotification('Logged out successfully', 'success')
 }
 

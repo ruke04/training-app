@@ -33,6 +33,17 @@
 - Example:
   - `curl -i http://localhost:8000/me -H "Authorization: Bearer TOKEN"`
 
+#### POST `/logout` or GET `/logout`
+- Clear the `auth_token` cookie to log out the user
+- Does not require authentication
+- Responses:
+  - `200 OK`: HTML page with logout confirmation (GET) or JSON message (POST)
+- Clears the `auth_token` cookie by setting it to expire immediately
+- The GET endpoint returns HTML that can be loaded in an iframe for cross-origin cookie clearing
+- Example:
+  - `curl -i -X POST http://localhost:8000/logout`
+  - `curl -i http://localhost:8000/logout`
+
 ### Protected Static Site Delivery
 
 These endpoints serve files from the protected directory mounted at `/app/protected_site` and require a valid JWT. They accept the token via:
@@ -68,5 +79,7 @@ These endpoints serve files from the protected directory mounted at `/app/protec
    - `curl -i http://localhost:8000/me -H "Authorization: Bearer $TOKEN"`
 3) Open the protected site:
    - `open "http://localhost:8000/protected?token=$TOKEN"`
+4) Logout (clears auth_token cookie):
+   - `curl -i -X POST http://localhost:8000/logout`
 
 

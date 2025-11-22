@@ -1,0 +1,314 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EFEWALICOMMS OY - FAQ</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        /* Optional: Add a smooth transition for the dropdown */
+        .faq-content {
+            transition: max-height 0.3s ease-out, opacity 0.3s ease-out;
+            max-height: 0;
+            opacity: 0;
+            overflow: hidden;
+        }
+        .faq-content.open {
+            max-height: 200px; /* Adjust as needed, should be larger than max possible content height */
+            opacity: 1;
+        }
+    </style>
+    <!-- Favicon -->
+    <link rel="icon" type="image/x-icon" href="/logos/logo 1.png">
+</head>
+<body class="bg-white text-gray-800 relative font-inter">
+
+    <!-- Background blur circles for visual effect -->
+    <div class="absolute top-0 left-0 w-96 h-96 bg-yellow-100/30 rounded-full filter blur-3xl opacity-50 -translate-x-1/2 -translate-y-1/2"></div>
+    <div class="absolute bottom-0 left-0 w-96 h-96 bg-orange-100/30 rounded-full filter blur-3xl opacity-50 -translate-x-1/4 translate-y-1/4"></div>
+    <div class="absolute top-1/2 right-0 w-96 h-96 bg-indigo-100/30 rounded-full filter blur-3xl opacity-50 translate-x-1/2 -translate-y-1/4"></div>
+    <div class="absolute bottom-1/4 right-0 w-96 h-96 bg-pink-100/30 rounded-full filter blur-3xl opacity-50 translate-x-1/3"></div>
+
+    <div class="container mx-auto px-6 py-4 relative z-10">
+        <header class="flex justify-between items-center py-4">
+            <div class="text-2xl font-bold text-indigo-900">
+                <a href="index.html">
+                    <img src="logos/logo 1.png" alt="Logo here" class="h-16"> </a>
+            </div>
+            <nav class="hidden lg:flex items-center space-x-8 text-sm font-medium text-gray-600">
+                <a href="index.html" class="hover:text-indigo-900">Home</a>
+                <a href="about.html" class="hover:text-indigo-900">About Us</a>
+                <div class="relative group">
+                    <a href="#" class="flex items-center hover:text-indigo-900">
+                        Industries
+                        <svg class="ml-1 w-4 h-4 transition-transform duration-200 group-hover:rotate-180" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                    </a>
+                    <div class="absolute hidden group-hover:block bg-white shadow-lg rounded-md mt-2 py-2 w-40">
+                        <a href="#" class="block px-4 py-2 text-gray-800 hover:bg-gray-100">Fintech</a>
+                        <a href="#" class="block px-4 py-2 text-gray-800 hover:bg-gray-100">Healthcare</a>
+                        <a href="#" class="block px-4 py-2 text-gray-800 hover:bg-gray-100">Energy/Oil & Gas</a>
+                        <a href="#" class="block px-4 py-2 text-gray-800 hover:bg-gray-100">E-commerce</a>
+                        <a href="#" class="block px-4 py-2 text-gray-800 hover:bg-gray-100">Telecom</a>
+                        <a href="#" class="block px-4 py-2 text-gray-800 hover:bg-gray-100">Manufacturing</a>
+                    </div>
+                </div>
+                <a href="services.html" class="hover:text-indigo-900">Services</a>
+            </nav>
+            <div class="hidden lg:flex items-center space-x-4">
+                <a href="index.html" class="text-gray-600 hover:text-indigo-900 focus:outline-none transition-colors duration-200">
+                    
+                </a>
+                <a href="contact.html" class="inline-block bg-orange-500 text-white font-semibold px-6 py-2 rounded-lg shadow-md hover:bg-orange-600 transition-colors duration-300">
+                    Contact Us
+                </a>
+            </div>
+            <button id="mobile-menu-button" class="lg:hidden z-50">
+                <svg id="hamburger-icon" xmlns="http://www.w3.org/2000/svg" class="h-8 w-8 text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16m-7 6h7" />
+                </svg>
+                <svg id="close-icon" xmlns="http://www.w3.org/2000/svg" class="h-8 w-8 text-gray-600 hidden" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+            </button>
+        </header>
+
+        <!-- Mobile menu overlay -->
+        <div id="mobile-menu-overlay" class="fixed top-0 left-0 w-full h-full bg-white/90 backdrop-blur-sm z-40 flex flex-col items-center py-16 lg:hidden hidden">
+            <nav class="flex flex-col items-center text-xl font-medium text-gray-800 space-y-4 pt-24 w-full">
+                <a href="about.html" class="hover:text-indigo-900 py-2 transition-colors duration-200">About Us</a>
+
+                <div class="w-full text-center">
+                    <a href="#" class="flex items-center justify-center hover:text-indigo-900 py-2 mobile-dropdown-toggle transition-colors duration-200">
+                        Industries
+                        <svg class="ml-1 w-4 h-4 transition-transform duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                    </a>
+                    <div class="mobile-dropdown-content text-base font-normal space-y-2 mt-2 hidden">
+                        <a href="#" class="block px-4 py-2 text-gray-800 hover:bg-gray-100 text-center transition-colors duration-200">Fintech</a>
+                        <a href="#" class="block px-4 py-2 text-gray-800 hover:bg-gray-100 text-center transition-colors duration-200">Healthcare</a>
+                        <a href="#" class="block px-4 py-2 text-gray-800 hover:bg-gray-100 text-center transition-colors duration-200">Energy/Oil & Gas</a>
+                        <a href="#" class="block px-4 py-2 text-gray-800 hover:bg-gray-100 text-center transition-colors duration-200">E-commerce</a>
+                        <a href="#" class="block px-4 py-2 text-gray-800 hover:bg-gray-100 text-center transition-colors duration-200">Telecom</a>
+                        <a href="#" class="block px-4 py-2 text-gray-800 hover:bg-gray-100 text-center transition-colors duration-200">Manufacturing</a>
+                    </div>
+                </div>
+
+                <a href="services.html" class="hover:text-indigo-900 py-2">Services</a>
+
+                <a href="index.html" class="hover:text-indigo-900 py-2 flex items-center justify-center transition-colors duration-200">
+                    <!-- Placeholder globe icon. Replace with actual SVG if available. -->
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M3 5h12M9 3v2m1.048 9.5A18.022 18.022 0 016.5 10a18.022 18.022 0 00-3.5 4.5c.373 1.298 1.405 2.277 2.68 2.822M15 11a5 5 0 01-5 5H6a5 5 0 01-5-5V7a5 5 0 015-5h4a5 5 0 015 5v4zm0 0h3.5a2.5 2.5 0 002.5-2.5V9a2.5 2.5 0 00-2.5-2.5H15m-5 4a2 2 0 11-4 0 2 2 0 014 0z" />
+                    </svg>
+                    Global Presence
+                </a>
+
+                <div class="mt-4 pt-4 border-t border-gray-200 w-full text-center">
+                    <a href="contact.html" class="inline-block bg-orange-500 text-white font-semibold px-6 py-2 rounded-lg shadow-md hover:bg-orange-600 transition-colors duration-300">
+                        Contact Us
+                    </a>
+                </div>
+            </nav>
+        </div>
+
+        <main class="mt-16 lg:mt-24">
+            <h1 class="text-4xl md:text-5xl font-bold text-indigo-900 text-center mb-12">Frequently Asked Questions</h1>
+
+            <div class="max-w-3xl mx-auto space-y-8">
+                <!-- FAQ Item 1 -->
+                <div class="bg-white p-6 rounded-lg shadow-md border border-gray-100">
+                    <button class="w-full flex justify-between items-center text-left focus:outline-none faq-toggle">
+                        <h2 class="text-xl font-semibold text-gray-900">What services does Efewalicomms OY offer?</h2>
+                        <svg class="w-6 h-6 text-gray-600 transform transition-transform duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                    </button>
+                    <div class="faq-content mt-4 text-gray-700 hidden">
+                        <p>Efewalicomms OY specializes in a range of IT services including IT consulting, software development, and comprehensive software testing & automation. We tailor our solutions to meet the unique needs of each client.</p>
+                    </div>
+                </div>
+
+                <!-- FAQ Item 2 -->
+                <div class="bg-white p-6 rounded-lg shadow-md border border-gray-100">
+                    <button class="w-full flex justify-between items-center text-left focus:outline-none faq-toggle">
+                        <h2 class="text-xl font-semibold text-gray-900">Which industries do you serve?</h2>
+                        <svg class="w-6 h-6 text-gray-600 transform transition-transform duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                    </button>
+                    <div class="faq-content mt-4 text-gray-700 hidden">
+                        <p>We proudly serve a diverse range of industries, including Fintech, Healthcare, E-commerce, Manufacturing, Telecom, and Energy/Oil & Gas. Our expertise allows us to provide specialized solutions for each sector.</p>
+                    </div>
+                </div>
+
+                <!-- FAQ Item 3 -->
+                <div class="bg-white p-6 rounded-lg shadow-md border border-gray-100">
+                    <button class="w-full flex justify-between items-center text-left focus:outline-none faq-toggle">
+                        <h2 class="text-xl font-semibold text-gray-900">How can I get a consultation?</h2>
+                        <svg class="w-6 h-6 text-gray-600 transform transition-transform duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                    </button>
+                    <div class="faq-content mt-4 text-gray-700 hidden">
+                        <p>You can easily request a consultation by visiting our "Contact Us" page and reaching out to us directly via phone or email. Our team will get back to you promptly.</p>
+                    </div>
+                </div>
+
+                <!-- FAQ Item 4 -->
+                <div class="bg-white p-6 rounded-lg shadow-md border border-gray-100">
+                    <button class="w-full flex justify-between items-center text-left focus:outline-none faq-toggle">
+                        <h2 class="text-xl font-semibold text-gray-900">Do you offer ongoing support after project completion?</h2>
+                        <svg class="w-6 h-6 text-gray-600 transform transition-transform duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                    </button>
+                    <div class="faq-content mt-4 text-gray-700 hidden">
+                        <p>Yes, we believe in long-term partnerships. We offer various levels of ongoing support and maintenance services to ensure your software solutions continue to perform optimally and evolve with your business needs.</p>
+                    </div>
+                </div>
+
+                <!-- FAQ Item 5 -->
+                <div class="bg-white p-6 rounded-lg shadow-md border border-gray-100">
+                    <button class="w-full flex justify-between items-center text-left focus:outline-none faq-toggle">
+                        <h2 class="text-xl font-semibold text-gray-900">What is your approach to software testing?</h2>
+                        <svg class="w-6 h-6 text-gray-600 transform transition-transform duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                    </button>
+                    <div class="faq-content mt-4 text-gray-700 hidden">
+                        <p>Our software testing approach is comprehensive, focusing on minimizing defects and maximizing reliability. We utilize advanced testing methodologies and automation frameworks, offering consultations for QA teams, improving test strategies, implementing quality gates, and enriching CI/CD workflows. We test across PC and mobile platforms.</p>
+                    </div>
+                </div>
+
+            </div>
+        </main>
+    </div>
+
+     <footer class="bg-white pt-16 pb-8">
+        <div class="container mx-auto px-6 text-center text-gray-600">
+            <h3 class="text-2xl font-bold text-indigo-900">Efewalicomms</h3>
+            <div class="flex flex-col sm:flex-row justify-center items-center space-y-4 sm:space-y-0 sm:space-x-6 mt-4">
+                <!-- Social media links -->
+                <a href="https://www.linkedin.com/company/efewalicomms-oy/" target="_blank" rel="noopener noreferrer" class="hover:opacity-75 transition-opacity duration-200">
+                    <img src="logos/in.svg" alt="">
+                </a>
+                <!-- Terms of Service and FAQ links -->
+                <a href="terms.html" class="text-sm text-gray-600 hover:text-indigo-900 transition-colors duration-200">Terms of Service</a>
+            </div>
+            <p class="mt-8 text-sm">&copy; <span id="current-year"></span> EFEWALICOMMS OY - All rights reserved</p>
+
+            <script>
+            document.getElementById('current-year').textContent = new Date().getFullYear();
+            </script>
+        </div>
+    </footer>
+
+    <!-- Scroll to top button -->
+    <a href="#" id="scrollToTopBtn" class="fixed bottom-8 right-8 bg-blue-500 text-white w-14 h-14 rounded-full flex items-center justify-center shadow-lg hover:bg-blue-600 transition-colors z-30">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-7 w-7" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M5 10l7-7m0 0l7 7m-7-7v18" />
+        </svg>
+    </a>
+
+    <script>
+        // JavaScript for mobile menu toggle
+        const mobileMenuButton = document.getElementById('mobile-menu-button');
+        const mobileMenuOverlay = document.getElementById('mobile-menu-overlay');
+        const hamburgerIcon = document.getElementById('hamburger-icon');
+        const closeIcon = document.getElementById('close-icon');
+
+        if (mobileMenuButton && mobileMenuOverlay && hamburgerIcon && closeIcon) {
+            mobileMenuButton.addEventListener('click', () => {
+                mobileMenuOverlay.classList.toggle('hidden');
+                hamburgerIcon.classList.toggle('hidden');
+                closeIcon.classList.toggle('hidden');
+                document.body.classList.toggle('overflow-hidden');
+            });
+
+            mobileMenuOverlay.querySelectorAll('a').forEach(link => {
+                link.addEventListener('click', () => {
+                    mobileMenuOverlay.classList.add('hidden');
+                    hamburgerIcon.classList.remove('hidden');
+                    closeIcon.classList.add('hidden');
+                    document.body.classList.remove('overflow-hidden');
+                });
+            });
+        }
+
+        // JavaScript for mobile dropdowns in the navigation (if any)
+        document.querySelectorAll('.mobile-dropdown-toggle').forEach(toggle => {
+            toggle.addEventListener('click', function(event) {
+                event.preventDefault();
+                const dropdownContent = this.nextElementSibling;
+                dropdownContent.classList.toggle('hidden');
+                this.querySelector('svg').classList.toggle('rotate-180');
+            });
+        });
+
+        // JavaScript for "Read More" functionality (if applicable to other pages using this script)
+        document.querySelectorAll('.read-more-toggle').forEach(button => {
+            button.addEventListener('click', function(event) {
+                event.preventDefault();
+                const description = this.previousElementSibling;
+                const isExpanded = this.dataset.expanded === 'true';
+
+                if (isExpanded) {
+                    description.textContent = description.dataset.shorttext;
+                    this.textContent = 'More information →';
+                    this.dataset.expanded = 'false';
+                } else {
+                    description.textContent = description.dataset.fulltext;
+                    this.textContent = 'Less information ←';
+                    this.dataset.expanded = 'true';
+                }
+            });
+        });
+
+        // JavaScript for FAQ accordion functionality
+        document.querySelectorAll('.faq-toggle').forEach(button => {
+            button.addEventListener('click', () => {
+                const content = button.nextElementSibling;
+                const icon = button.querySelector('svg');
+
+                // Toggle the 'hidden' class for visibility
+                content.classList.toggle('hidden');
+                // Toggle the 'open' class for CSS transitions (if defined)
+                content.classList.toggle('open');
+                // Rotate the arrow icon
+                icon.classList.toggle('rotate-180');
+            });
+        });
+
+        // JavaScript for current year in footer
+        const currentYearFooter = document.getElementById('current-year-footer');
+        if (currentYearFooter) {
+            currentYearFooter.textContent = new Date().getFullYear();
+        }
+
+        // JavaScript for scroll-to-top button
+        const scrollToTopBtn = document.getElementById('scrollToTopBtn');
+
+        if (scrollToTopBtn) {
+            window.addEventListener('scroll', () => {
+                if (window.scrollY > 300) {
+                    scrollToTopBtn.classList.remove('hidden');
+                    scrollToTopBtn.classList.add('flex');
+                } else {
+                    scrollToTopBtn.classList.add('hidden');
+                    scrollToTopBtn.classList.remove('flex');
+                }
+            });
+
+            scrollToTopBtn.addEventListener('click', (e) => {
+                e.preventDefault();
+                window.scrollTo({
+                    top: 0,
+                    behavior: 'smooth'
+                });
+            });
+        }
+
+        // Initialize descriptions on page load (if applicable to other pages using this script)
+        document.addEventListener('DOMContentLoaded', () => {
+            document.querySelectorAll('.service-description').forEach(desc => {
+                if (desc.dataset.shorttext) {
+                    desc.textContent = desc.dataset.shorttext;
+                }
+            });
+        });
+    </script>
+
+</body>
+</html>

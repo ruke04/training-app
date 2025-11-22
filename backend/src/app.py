@@ -5,7 +5,7 @@ from typing import Optional
 
 from fastapi import FastAPI, HTTPException, Depends, Header, Query, Cookie, Security
 from fastapi.security import HTTPBasic, HTTPBasicCredentials, HTTPBearer, HTTPAuthorizationCredentials
-from fastapi.responses import FileResponse, JSONResponse
+from fastapi.responses import FileResponse, JSONResponse, RedirectResponse, Response
 from fastapi.openapi.docs import get_swagger_ui_html, get_redoc_html
 from fastapi.openapi.utils import get_openapi
 from fastapi.middleware.cors import CORSMiddleware
@@ -102,6 +102,40 @@ def login(data: LoginRequest, db: Session = Depends(get_db)):
         raise HTTPException(status_code=401, detail="Invalid credentials")
     token = create_access_token(subject=user.username)
     return {"token": token}
+
+
+@app.post("/logout", tags=["auth"], summary="Logout and clear auth_token cookie")
+@app.get("/logout", tags=["auth"], summary="Logout and clear auth_token cookie (GET for iframe)")
+def logout():
+    """Clear the auth_token cookie to log out the user. Does not require authentication."""
+    # Return HTML that clears the cookie and can be used in an iframe
+    html_content = """
+    <!DOCTYPE html>
+    <html>
+    <head><title>Logout</title></head>
+    <body>
+        <script>
+            // Clear cookie by setting it to expire
+            document.cookie = 'auth_token=; Max-Age=0; Path=/; SameSite=Lax';
+            // Also try to notify parent window if in iframe
+            if (window.parent !== window) {
+                window.parent.postMessage('logout-complete', '*');
+            }
+        </script>
+        <p>Logged out successfully</p>
+    </body>
+    </html>
+    """
+    response = Response(content=html_content, media_type="text/html")
+    # Also set the cookie header to clear it
+    response.set_cookie(
+        key="auth_token", 
+        value="", 
+        max_age=0, 
+        path="/", 
+        samesite="lax"
+    )
+    return response
 
 
 @app.get("/me", tags=["auth"], summary="Get current user from JWT or Basic Auth")
@@ -203,7 +237,7 @@ def protected_root(
     # Prefer the freshest token (query/header) for cookie value
     cookie_token = token or (authorization.split(" ", 1)[1] if authorization.startswith("Bearer ") else auth_token)
     if cookie_token:
-        resp.set_cookie(key="auth_token", value=cookie_token, max_age=3600, path="/")
+        resp.set_cookie(key="auth_token", value=cookie_token, max_age=3600, path="/", samesite="lax")
     return resp
 
 
@@ -250,8 +284,18 @@ def protected_root_level_files(
     auth_token: Optional[str] = Cookie(default=None),
     db: Session = Depends(get_db),
 ):
-    # Serve files from protected_dir at root paths (e.g., /contact.html) if they exist.
-    _validate_token_from_header_or_query_or_cookie(authorization, token, auth_token, db)
+    # Exclude known API endpoints from this catch-all route - MUST check FIRST before any auth
+    excluded_paths = ["logout", "register", "login", "me", "api-docs", "redoc", "openapi.json", "protected"]
+    if path in excluded_paths or path.startswith("protected/") or path.startswith("api/"):
+        raise HTTPException(status_code=404, detail="Not found")
+    # Now validate authentication for actual protected files
+    try:
+        _validate_token_from_header_or_query_or_cookie(authorization, token, auth_token, db)
+    except HTTPException:
+        # If auth fails, still check if it's an excluded path (shouldn't happen, but safety check)
+        if path not in excluded_paths:
+            raise
+        raise HTTPException(status_code=404, detail="Not found")
     base_dir = os.getenv("PROTECTED_DIR", "/app/protected_site")
     rel_path = path or "index.html"
     safe_path = os.path.normpath(os.path.join(base_dir, rel_path))

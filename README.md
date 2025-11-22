@@ -2,10 +2,11 @@
 
 A minimal full‑stack app used to practice end‑to‑end UI automation with Robot Framework.
 
-### What’s included
-- **Backend**: FastAPI service with auth: `POST /register`, `POST /login`, `GET /me`
+### What's included
+- **Backend**: FastAPI service with auth: `POST /register`, `POST /login`, `GET /me`, `POST /logout`, `GET /protected`
 - **Database**: Postgres (via Docker) with SQLAlchemy models
 - **Frontend**: Static HTML + JS (NGINX) with signup, login, and profile fetch
+- **Protected Site**: Authenticated static site accessible at `http://localhost:8000/protected`
 - **E2E Tests**: Robot Framework Browser covering register + login flow
 - **Containerization**: `docker-compose` spins up DB, backend, and frontend
 
@@ -38,7 +39,9 @@ docker-compose up --build -d  (for linux)
 
 3) Create an account, then login. The UI exposes both flows.
 
-4) Stop everything
+4) After logging in, click "Open Protected Site" to access the protected content at `http://localhost:8000/protected`
+
+5) Stop everything
 ```bash
 docker compose down - (for mac)
 docker-compose down - (for linux)
@@ -77,12 +80,29 @@ Note: Because the frontend (8080) calls the backend (8000), CORS is enabled and 
 - 200 OK: `{ "username": string }`
 - 401 Unauthorized if missing/invalid
 
-Example:
+`POST /logout`
+- Clears the `auth_token` cookie to log out the user
+- Does not require authentication
+- 200 OK: `{ "message": "Logged out successfully" }` (or HTML page)
+- Also available as `GET /logout` for iframe-based logout
+
+`GET /protected`
+- Serves protected static site (requires authentication)
+- Auth: `Authorization: Bearer <token>` header, or `?token=<token>` query parameter, or `auth_token` cookie
+- 200 OK: Returns `index.html` from protected directory
+- 401 Unauthorized if missing/invalid token
+- 404 Not found if protected files are missing
+
+Examples:
 ```bash
+# Login
 curl -i -X POST \
   -H 'Content-Type: application/json' \
   -d '{"username":"student","password":"12345"}' \
   http://localhost:8000/login
+
+# Access protected site (replace TOKEN with actual token)
+curl -i "http://localhost:8000/protected?token=TOKEN"
 ```
 
 ## Running Robot Framework tests
@@ -124,7 +144,9 @@ See [JENKINS.md](JENKINS.md) for detailed setup instructions and configuration o
 
 ## Troubleshooting
 - If the browser console shows CORS errors, set env var `CORS_ORIGIN=http://localhost:8080` for the backend.
-- Ensure ports aren’t in use: backend `8000`, frontend `8080`.
+- Ensure ports aren't in use: backend `8000`, frontend `8080`.
+- If you get "Protected file not found" error, restart the backend container: `docker compose restart backend` or `docker compose up -d --force-recreate backend`.
+- After logout, if you can still access the protected site, clear your browser cookies or use a private/incognito window.
 - Rebuild containers after changes: `docker compose up --build -d`.
 
 ## License
