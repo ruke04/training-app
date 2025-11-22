@@ -31,7 +31,8 @@ docker-compose.yml
 ## Quick start (Docker)
 1) Build and start services
 ```bash
-docker compose up --build -d
+docker compose up --build -d  (for mac)
+docker-compose up --build -d  (for linux)
 ```
 2) Open the app UI: `http://localhost:8080`
 
@@ -39,7 +40,8 @@ docker compose up --build -d
 
 4) Stop everything
 ```bash
-docker compose down
+docker compose down - (for mac)
+docker-compose down - (for linux)
 ```
 
 ## Local development (without Docker)
