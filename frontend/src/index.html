@@ -133,6 +133,62 @@
         .notification.show { transform: translateX(0); }
         .notification.error { border-color: var(--danger); color: var(--danger); }
         .notification.success { border-color: var(--accent-2); color: var(--accent-2); }
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.7);
+            z-index: 2000;
+            align-items: center;
+            justify-content: center;
+        }
+        .modal.show { display: flex; }
+        .modal-content {
+            background: var(--panel);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 24px;
+            max-width: 400px;
+            width: 90%;
+            box-shadow: var(--shadow);
+        }
+        .modal-title {
+            font-size: 20px;
+            font-weight: 700;
+            margin-bottom: 12px;
+            color: var(--text);
+        }
+        .modal-message {
+            color: var(--muted);
+            margin-bottom: 20px;
+            line-height: 1.5;
+        }
+        .modal-actions {
+            display: flex;
+            gap: 10px;
+            justify-content: flex-end;
+        }
+        .modal-btn {
+            padding: 10px 20px;
+            border-radius: 10px;
+            border: none;
+            font-weight: 600;
+            cursor: pointer;
+            transition: filter 0.2s ease;
+        }
+        .modal-btn:hover { filter: brightness(1.05); }
+        .modal-btn:active { transform: translateY(1px); }
+        .modal-btn-cancel {
+            background: var(--border);
+            color: var(--text);
+        }
+        .modal-btn-confirm {
+            background: linear-gradient(180deg, var(--danger), #dc2626);
+            color: white;
+        }
         pre {
             margin: 10px 0 0;
             background: #0b1020;
@@ -146,6 +202,16 @@
     </head>
 <body>
     <div id="notification" class="notification"></div>
+    <div id="confirmModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-title" id="modalTitle">Confirm Action</div>
+            <div class="modal-message" id="modalMessage"></div>
+            <div class="modal-actions">
+                <button class="modal-btn modal-btn-cancel" onclick="closeModal()">Cancel</button>
+                <button class="modal-btn modal-btn-confirm" id="modalConfirmBtn" onclick="confirmModalAction()">Confirm</button>
+            </div>
+        </div>
+    </div>
     <div class="container">
         <header>
             <div class="brand">🧪 Training App</div>
@@ -191,14 +257,32 @@
                 <button class="btn" type="button" onclick="fetchMe()">Refresh Profile</button>
                 <button class="btn secondary" type="button" onclick="openProtected()">Open Protected Site</button>
                 <button class="btn" type="button" onclick="logout()" style="background: linear-gradient(180deg, var(--danger), #dc2626);">Logout</button>
+                <button class="btn" type="button" onclick="deleteAccount()" style="background: linear-gradient(180deg, #991b1b, #7f1d1d); border: 1px solid #dc2626;">Delete My Account</button>
             </div>
             <pre id="me" style="margin-top: 12px;"></pre>
+        </section>
+
+        <section class="card" style="margin-top:16px;">
+            <div class="section-title">
+                <h2>User Management</h2>
+            </div>
+            <div style="margin-top: 12px; display: flex; gap: 8px; flex-wrap: wrap; align-items: center;">
+                <button class="btn secondary" type="button" onclick="listUsers()">Show All Users</button>
+            </div>
+            <div id="users_list" style="margin-top: 12px;"></div>
+            <div style="margin-top: 12px;">
+                <p class="hint">Delete a specific user:</p>
+                <div style="display: flex; gap: 8px; flex-wrap: wrap; align-items: center;">
+                    <input id="delete_username" placeholder="Enter username to delete" style="width: 200px;">
+                    <button class="btn" type="button" onclick="deleteUser()" style="background: linear-gradient(180deg, #991b1b, #7f1d1d); border: 1px solid #dc2626;">Delete User</button>
+                </div>
+            </div>
         </section>
 
         <footer>
             Built for Robot Framework practice • FastAPI + Postgres + NGINX
         </footer>
     </div>
-    <script src="app.js?v=6"></script>
+    <script src="app.js?v=7"></script>
 </body>
 </html>

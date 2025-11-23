@@ -171,6 +171,98 @@ def me(
     raise HTTPException(status_code=401, detail="Missing authentication")
 
 
+def _get_current_username(
+    authorization: str = Header(default=""),
+    bearer_token: Optional[HTTPAuthorizationCredentials] = Security(http_bearer),
+    db: Session = Depends(get_db),
+) -> str:
+    """Helper function to get current username from JWT or Basic Auth."""
+    # Try Basic Auth first
+    if authorization.startswith("Basic "):
+        try:
+            encoded = authorization.split(" ", 1)[1]
+            decoded = base64.b64decode(encoded).decode("utf-8")
+            username, password = decoded.split(":", 1)
+            credentials = HTTPBasicCredentials(username=username, password=password)
+            return _validate_basic_auth(credentials, db)
+        except Exception:
+            raise HTTPException(status_code=401, detail="Invalid Basic Auth", headers={"WWW-Authenticate": "Basic"})
+    
+    # Try JWT Bearer token
+    if bearer_token:
+        return _validate_jwt_token(bearer_token.credentials)
+    
+    # Fallback to Authorization header parsing for JWT
+    if authorization.startswith("Bearer "):
+        token = authorization.split(" ", 1)[1]
+        return _validate_jwt_token(token)
+    
+    raise HTTPException(status_code=401, detail="Missing authentication")
+
+
+@app.get("/users", tags=["auth"], summary="List all users")
+def list_users(
+    authorization: str = Header(default=""),
+    bearer_token: Optional[HTTPAuthorizationCredentials] = Security(http_bearer),
+    db: Session = Depends(get_db),
+):
+    """List all users. Requires authentication."""
+    _get_current_username(authorization, bearer_token, db)  # Verify authentication
+    
+    users = db.query(User).all()
+    return {
+        "users": [
+            {
+                "id": user.id,
+                "username": user.username,
+                "created_at": user.created_at.isoformat() if user.created_at else None
+            }
+            for user in users
+        ]
+    }
+
+
+@app.delete("/me", tags=["auth"], summary="Delete current user account")
+def delete_me(
+    authorization: str = Header(default=""),
+    bearer_token: Optional[HTTPAuthorizationCredentials] = Security(http_bearer),
+    db: Session = Depends(get_db),
+):
+    """Delete the current user's account. Requires authentication."""
+    username = _get_current_username(authorization, bearer_token, db)
+    
+    # Find and delete the user
+    user = db.query(User).filter(User.username == username).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    db.delete(user)
+    db.commit()
+    
+    return {"message": f"User '{username}' deleted successfully"}
+
+
+@app.delete("/users/{username}", tags=["auth"], summary="Delete a specific user by username")
+def delete_user(
+    username: str,
+    authorization: str = Header(default=""),
+    bearer_token: Optional[HTTPAuthorizationCredentials] = Security(http_bearer),
+    db: Session = Depends(get_db),
+):
+    """Delete a specific user by username. Requires authentication."""
+    _get_current_username(authorization, bearer_token, db)  # Verify authentication
+    
+    # Find and delete the user
+    user = db.query(User).filter(User.username == username).first()
+    if not user:
+        raise HTTPException(status_code=404, detail=f"User '{username}' not found")
+    
+    db.delete(user)
+    db.commit()
+    
+    return {"message": f"User '{username}' deleted successfully"}
+
+
 def _validate_basic_auth(credentials: HTTPBasicCredentials, db: Session) -> str:
     """Validate Basic Auth credentials and return username."""
     user = db.query(User).filter(User.username == credentials.username).first()
