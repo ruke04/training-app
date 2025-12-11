@@ -28,4 +28,17 @@ Click Sign Up Button
     Wait For Element To Be Visible   ${SIGN_UP_BUTTON}   timeout=10s
     Click  ${SIGN_UP_BUTTON}
 
+Enter Login Username
+    [Arguments]    ${username}
+    Wait For Element To Be Visible   ${LOGIN_USERNAME}   timeout=10s
+    Type Text  ${LOGIN_USERNAME}  ${username}
+
+Enter Login Password
+    [Arguments]    ${password}
+    Wait For Element To Be Visible   ${LOGIN_PASSWORD}   timeout=10s
+    Type Text  ${LOGIN_PASSWORD}  ${password}
+
+Click Login Button
+    Wait For Element To Be Visible   ${LOGIN_BUTTON}   timeout=10s
+    Click  ${LOGIN_BUTTON}
 
