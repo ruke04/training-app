@@ -19,3 +19,11 @@ Verify unsuccessful user login with an invalid password
     Enter Login Password            Invalidpass1
     Click Login Button      
     Wait For Elements State         text=Login failed    visible  timeout=2s
+
+Verify unsuccessful user login with non-existent user
+    [Documentation]  verify the user is unable to log in as a non-existent user
+    [Tags]    test
+    Enter Login Username         bibi   
+    Enter Login Password         remote
+    Click Login Button      
+    Wait For Elements State         text=Login failed    visible  timeout=2s
