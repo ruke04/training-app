@@ -29,10 +29,17 @@ Verify unsuccessful user login with non-existent user
 
 Verify unsuccessful user login with empty fields
     [Documentation]  verify the user is unable to log in with empty fields
-    [Tags]    test
     Enter Login Username         
     Enter Login Password         
     Click Login Button      
     Wait For Elements State        text=Login failed    visible  timeout=2s
 
+Verify session persistence after page refresh
+    [Documentation]    verify the user remains logged in after refreshing the page
+    Enter Login Username         Bibi
+    Enter Login Password         12345
+    Click Login Button      
+    Wait For Elements State     text=Login successful  visible  timeout=2s
+    Browser.Reload
+    Wait For Elements State     text=Logged in    visible  timeout=2s
     
