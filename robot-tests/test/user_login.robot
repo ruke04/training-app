@@ -6,9 +6,16 @@ Suite Teardown   Close browser
 
 
 *** Test cases ***
-verify suceessful user login
+Verify successful user login
     [Documentation]   verify the User is able to log in succesfully
-    Enter Login Username  Bibi  
-    Enter Login Password  12345
+    Enter Login Username     Bibi  
+    Enter Login Password     12345
     Click Login Button      
     Wait For Elements State  text=Login successful  visible  timeout=2s
+
+Verify unsuccessful user login with an invalid password
+    [Documentation]  verify the user is unable to log in with an invalid password
+    Enter Login Username            Efe
+    Enter Login Password            Invalidpass1
+    Click Login Button      
+    Wait For Elements State         text=Login failed    visible  timeout=2s
