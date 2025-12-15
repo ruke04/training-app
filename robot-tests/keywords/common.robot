@@ -29,14 +29,15 @@ Click Sign Up Button
     Click  ${SIGN_UP_BUTTON}
 
 Enter Login Username
-    [Arguments]    ${username}
+    [Arguments]    ${username}=None
     Wait For Element To Be Visible   ${LOGIN_USERNAME}   timeout=10s
-    Type Text  ${LOGIN_USERNAME}  ${username}
+    Run Keyword If    '${username}' != 'None'    Type Text    ${LOGIN_USERNAME}    ${username}
 
 Enter Login Password
-    [Arguments]    ${password}
+    [Arguments]    ${password}=None
     Wait For Element To Be Visible   ${LOGIN_PASSWORD}   timeout=10s
-    Type Text  ${LOGIN_PASSWORD}  ${password}
+    Run Keyword If    '${password}' != 'None'    Type Text  ${LOGIN_PASSWORD}  ${password}
+
 
 Click Login Button
     Wait For Element To Be Visible   ${LOGIN_BUTTON}   timeout=10s
