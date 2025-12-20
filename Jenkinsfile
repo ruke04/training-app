@@ -129,12 +129,74 @@ pipeline {
                 '''
             }
         }
+        
+        stage('Robot Framework Tests') {
+            steps {
+                echo 'Running Robot Framework tests...'
+                sh 'mkdir -p robot-results'
+                sh '''
+                    # Detect host for tests
+                    HOST=""
+                    if getent hosts host.docker.internal >/dev/null 2>&1; then
+                        HOST="host.docker.internal"
+                    else
+                        HOST=$(hostname -I 2>/dev/null | awk '{print $1}' || echo "host.docker.internal")
+                    fi
+                    if [ -z "$HOST" ]; then
+                        HOST="host.docker.internal"
+                    fi
+                    
+                    echo "Running Robot tests against http://$HOST:8080"
+                    
+                    # Run Robot Framework tests in Docker container
+                    docker run --rm \
+                        --network host \
+                        -v "$(pwd)/robot-tests:/robot" \
+                        -v "$(pwd)/robot-results:/results" \
+                        --add-host=host.docker.internal:host-gateway \
+                        marketsquare/robotframework-browser:latest \
+                        bash -c "
+                            rfbrowser init chromium && \
+                            robot \
+                                --variable HEADLESS:true \
+                                --variable FRONTEND_URL:http://$HOST:8080 \
+                                --outputdir /results \
+                                --loglevel DEBUG \
+                                /robot/test
+                        "
+                '''
+            }
+            post {
+                always {
+                    // Archive Robot Framework results
+                    archiveArtifacts artifacts: 'robot-results/**/*', allowEmptyArchive: true
+                    
+                    // Publish Robot Framework results (requires Robot Framework plugin)
+                    script {
+                        try {
+                            step([
+                                $class: 'RobotPublisher',
+                                outputPath: 'robot-results',
+                                outputFileName: 'output.xml',
+                                reportFileName: 'report.html',
+                                logFileName: 'log.html',
+                                passThreshold: 80.0,
+                                unstableThreshold: 60.0
+                            ])
+                        } catch (Exception e) {
+                            echo "Robot Framework plugin not installed, skipping result publishing"
+                        }
+                    }
+                }
+            }
+        }
     }
     
     post {
         always {
-            echo 'Pipeline completed. Services are still running.'
-            echo 'To stop services manually, run: docker compose down'
+            //echo 'Cleaning up...'
+            //sh 'docker compose down || true'
+            //sh 'rm -rf robot-results || true'
         }
         success { echo 'Pipeline succeeded! ✅' }
         failure { echo 'Pipeline failed! ❌' }
