@@ -162,7 +162,7 @@ pipeline {
                                 --variable FRONTEND_URL:http://$HOST:8080 \
                                 --outputdir /results \
                                 --loglevel DEBUG \
-                                ~/robot-tests/test
+                                /var/jenkins_home/workspace/training-app-pipeline/robot-tests/test
                         "
                 '''
             }
