@@ -21,28 +21,8 @@ pipeline {
         
         stage('Build Docker Images') {
             steps {
-                echo 'Ensuring docker-compose alias exists...'
-                sh '''
-                    # If docker compose exists but docker-compose does not, create alias
-                    if command -v docker compose >/dev/null 2>&1 && ! command -v docker-compose >/dev/null 2>&1; then
-                        echo "Creating docker-compose symlink..."
-                        sudo ln -sf /usr/libexec/docker/cli-plugins/docker-compose /usr/local/bin/docker-compose 2>/dev/null \
-                        || ln -sf /usr/libexec/docker/cli-plugins/docker-compose /usr/local/bin/docker-compose || true
-                        chmod +x /usr/local/bin/docker-compose || true
-                    fi
-                '''
-
                 echo 'Building Docker images...'
-                sh '''
-                    if command -v docker-compose &> /dev/null; then
-                        docker-compose build --no-cache
-                    elif docker compose version &> /dev/null; then
-                        docker compose build --no-cache
-                    else
-                        echo "❌ No docker compose available"
-                        exit 1
-                    fi
-                '''
+                sh 'docker compose build --no-cache'
             }
         }
         
@@ -50,15 +30,9 @@ pipeline {
             steps {
                 echo 'Starting services...'
                 sh '''
-                    if command -v docker-compose &> /dev/null; then
-                        docker-compose up -d
-                        sleep 10
-                        docker-compose ps
-                    else
-                        docker compose up -d
-                        sleep 10
-                        docker compose ps
-                    fi
+                    docker compose up -d
+                    sleep 10
+                    docker compose ps
                 '''
             }
         }
