@@ -162,7 +162,7 @@ pipeline {
                                 --variable FRONTEND_URL:http://$HOST:8080 \
                                 --outputdir /results \
                                 --loglevel DEBUG \
-                                /robot-tests/test
+                                /robot/test
                         "
                 '''
             }
@@ -194,10 +194,11 @@ pipeline {
     
     post {
         always {
-            echo 'Pipeline completed. Services are still running.'}
-            //echo 'Cleaning up...'
-            //sh 'docker compose down || true'
-            //sh 'rm -rf robot-results || true'        
+            echo 'Pipeline completed. Services are still running.'
+        }
+        //echo 'Cleaning up...'
+        //sh 'docker compose down || true'
+        //sh 'rm -rf robot-results || true' 
         success { echo 'Pipeline succeeded! ✅' }
         failure { echo 'Pipeline failed! ❌' }
         unstable { echo 'Pipeline unstable ⚠️' }
