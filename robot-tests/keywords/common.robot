@@ -42,3 +42,11 @@ Click Login Button
     Wait For Element To Be Visible   ${LOGIN_BUTTON}   timeout=10s
     Click  ${LOGIN_BUTTON}
 
+Click Refresh Profile Button
+    Wait For Element To Be Visible   ${REFRESH_PROFILE_BUTTON}   timeout=10s
+    Click  ${REFRESH_PROFILE_BUTTON} 
+
+
+Click LogOut Button
+    Wait For Element To Be Visible   ${LOGOUT_BUTTON}   timeout=10s
+    Click  ${LOGOUT_BUTTON} 
