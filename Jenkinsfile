@@ -194,10 +194,10 @@ pipeline {
     
     post {
         always {
+            echo 'Pipeline completed. Services are still running.'
             //echo 'Cleaning up...'
             //sh 'docker compose down || true'
-            //sh 'rm -rf robot-results || true'
-        }
+            //sh 'rm -rf robot-results || true'        }
         success { echo 'Pipeline succeeded! ✅' }
         failure { echo 'Pipeline failed! ❌' }
         unstable { echo 'Pipeline unstable ⚠️' }
