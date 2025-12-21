@@ -127,7 +127,12 @@ pipeline {
                         marketsquare/robotframework-browser:latest \
                         tail -f /dev/null
                     
-                    # Initialize and run tests inside the container
+                    # Fix permissions and run tests inside the container
+                    docker exec --user root rf-tests bash -c "
+                        mkdir -p /workspace/robot-results && \
+                        chmod 777 /workspace/robot-results
+                    "
+                    
                     docker exec rf-tests bash -c "
                         echo 'Initializing Browser library...' && \
                         rfbrowser init chromium && \
