@@ -105,27 +105,42 @@ pipeline {
         
         stage('Robot Framework Tests') {
             steps {
-                echo 'Setting up Robot Framework Docker container...'
+                echo 'Running Robot Framework tests...'
                 sh '''
                     # Get the host path where jenkins-data is mounted by inspecting the Jenkins container
                     JENKINS_HOST_PATH=$(docker inspect jenkins --format '{{range .Mounts}}{{if eq .Destination "/var/jenkins_home"}}{{.Source}}{{end}}{{end}}')
                     HOST_WORKSPACE="${JENKINS_HOST_PATH}/workspace/Training-app"
                     echo "Detected Host Workspace: $HOST_WORKSPACE"
                     
-                    # Run Robot Framework container and verify setup
-                    docker run --rm \
+                    # Create results directory
+                    mkdir -p robot-results
+                    
+                    # Remove old container if exists
+                    docker rm -f rf-tests 2>/dev/null || true
+                    
+                    # Run Robot Framework tests (container stays alive after tests)
+                    docker run -d \
+                        --name rf-tests \
                         --network host \
                         -v "$HOST_WORKSPACE:/workspace" \
                         --add-host=host.docker.internal:host-gateway \
                         marketsquare/robotframework-browser:latest \
-                        bash -c "
-                            echo 'Checking workspace contents...' && \
-                            ls -la /workspace/ && \
-                            ls -la /workspace/robot-tests/test/ && \
-                            echo 'Initializing Browser library...' && \
-                            rfbrowser init chromium && \
-                            echo 'Robot Framework container ready!'
-                        "
+                        tail -f /dev/null
+                    
+                    # Initialize and run tests inside the container
+                    docker exec rf-tests bash -c "
+                        echo 'Initializing Browser library...' && \
+                        rfbrowser init chromium && \
+                        echo 'Running Robot Framework tests...' && \
+                        robot \
+                            --variable HEADLESS:true \
+                            --variable FRONTEND_URL:http://172.17.0.1:8080 \
+                            --outputdir /workspace/robot-results \
+                            --loglevel DEBUG \
+                            /workspace/robot-tests/test || echo 'Tests completed with failures'
+                    "
+                    
+                    echo "RF container 'rf-tests' is still running. Access it with: docker exec -it rf-tests bash"
                 '''
             }
             post {
