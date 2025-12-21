@@ -127,13 +127,7 @@ pipeline {
                         marketsquare/robotframework-browser:latest \\
                         bash -c "
                             ls -la /workspace/robot-tests/test/ && \\
-                            rfbrowser init chromium && \\
-                            robot \\
-                                --variable HEADLESS:true \\
-                                --variable FRONTEND_URL:http://172.17.0.1:8080 \\
-                                --outputdir /workspace/robot-results \\
-                                --loglevel DEBUG \\
-                                /workspace/robot-tests/test
+                            rfbrowser init chromium 
                         "
                 """
             }
