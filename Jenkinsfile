@@ -4,6 +4,8 @@ pipeline {
     environment {
         COMPOSE_PROJECT_NAME = 'training-app'
         DOCKER_BUILDKIT = '1'
+        // Host path where jenkins-data is mounted (for Docker-in-Docker volume mounts)
+        JENKINS_HOST_WORKSPACE = '/Users/ruke/Desktop/training-app/jenkins-data/workspace/Training-app'
     }
     
     options {
@@ -109,19 +111,22 @@ pipeline {
                 sh 'mkdir -p robot-results'
                 sh """
                     echo "Running Robot tests against http://172.17.0.1:8080"
-                    echo "Workspace: ${WORKSPACE}"
+                    echo "Jenkins Workspace: ${WORKSPACE}"
+                    echo "Host Workspace: ${JENKINS_HOST_WORKSPACE}"
                     echo "Contents of robot-tests:"
                     ls -la ${WORKSPACE}/robot-tests/ || echo "robot-tests folder not found!"
                     echo "Contents of robot-tests/test:"
                     ls -la ${WORKSPACE}/robot-tests/test/ || echo "robot-tests/test folder not found!"
                     
                     # Run Robot Framework tests in Docker container
+                    # Use HOST path because Docker runs on host via docker.sock
                     docker run --rm \\
                         --network host \\
-                        -v "${WORKSPACE}:/workspace" \\
+                        -v "${JENKINS_HOST_WORKSPACE}:/workspace" \\
                         --add-host=host.docker.internal:host-gateway \\
                         marketsquare/robotframework-browser:latest \\
                         bash -c "
+                            ls -la /workspace/robot-tests/test/ && \\
                             rfbrowser init chromium && \\
                             robot \\
                                 --variable HEADLESS:true \\
