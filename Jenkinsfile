@@ -108,9 +108,7 @@ pipeline {
                 echo 'Running Robot Framework tests...'
                 sh 'mkdir -p robot-results'
                 sh """
-                    HOST="172.17.0.1"
-                    
-                    echo "Running Robot tests against http://\$HOST:8080"
+                    echo "Running Robot tests against http://172.17.0.1:8080"
                     echo "Workspace: ${WORKSPACE}"
                     echo "Contents of robot-tests:"
                     ls -la ${WORKSPACE}/robot-tests/ || echo "robot-tests folder not found!"
@@ -118,7 +116,6 @@ pipeline {
                     ls -la ${WORKSPACE}/robot-tests/test/ || echo "robot-tests/test folder not found!"
                     
                     # Run Robot Framework tests in Docker container
-                    # Mount the entire workspace so paths match
                     docker run --rm \\
                         --network host \\
                         -v "${WORKSPACE}:/workspace" \\
@@ -128,7 +125,7 @@ pipeline {
                             rfbrowser init chromium && \\
                             robot \\
                                 --variable HEADLESS:true \\
-                                --variable FRONTEND_URL:http://\$HOST:8080 \\
+                                --variable FRONTEND_URL:http://172.17.0.1:8080 \\
                                 --outputdir /workspace/robot-results \\
                                 --loglevel DEBUG \\
                                 /workspace/robot-tests/test
