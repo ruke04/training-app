@@ -107,28 +107,31 @@ pipeline {
             steps {
                 echo 'Running Robot Framework tests...'
                 sh 'mkdir -p robot-results'
-                sh '''
+                sh """
                     HOST="172.17.0.1"
                     
-                    echo "Running Robot tests against http://$HOST:8080"
+                    echo "Running Robot tests against http://\$HOST:8080"
+                    echo "Workspace: ${WORKSPACE}"
+                    ls -la ${WORKSPACE}/robot-tests/ || echo "robot-tests folder not found!"
+                    ls -la ${WORKSPACE}/robot-tests/test/ || echo "robot-tests/test folder not found!"
                     
                     # Run Robot Framework tests in Docker container
-                    docker run --rm \
-                        --network host \
-                        -v "$(pwd)/robot-tests:/robot" \
-                        -v "$(pwd)/robot-results:/results" \
-                        --add-host=host.docker.internal:host-gateway \
-                        marketsquare/robotframework-browser:latest \
+                    docker run --rm \\
+                        --network host \\
+                        -v "${WORKSPACE}/robot-tests:/robot" \\
+                        -v "${WORKSPACE}/robot-results:/results" \\
+                        --add-host=host.docker.internal:host-gateway \\
+                        marketsquare/robotframework-browser:latest \\
                         bash -c "
-                            rfbrowser init chromium && \
-                            robot \
-                                --variable HEADLESS:true \
-                                --variable FRONTEND_URL:http://$HOST:8080 \
-                                --outputdir /results \
-                                --loglevel DEBUG \
+                            rfbrowser init chromium && \\
+                            robot \\
+                                --variable HEADLESS:true \\
+                                --variable FRONTEND_URL:http://\$HOST:8080 \\
+                                --outputdir /results \\
+                                --loglevel DEBUG \\
                                 /robot/test
                         "
-                '''
+                """
             }
             post {
                 always {
@@ -160,9 +163,6 @@ pipeline {
         always {
             echo 'Pipeline completed. Services are still running.'
         }
-        //echo 'Cleaning up...'
-        //sh 'docker compose down || true'
-        //sh 'rm -rf robot-results || true' 
         success { echo 'Pipeline succeeded! ✅' }
         failure { echo 'Pipeline failed! ❌' }
         unstable { echo 'Pipeline unstable ⚠️' }
