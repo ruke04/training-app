@@ -138,11 +138,12 @@ pipeline {
                         rfbrowser init chromium && \
                         echo 'Running Robot Framework tests...' && \
                         robot \
+                            --nostatusrc \
                             --variable HEADLESS:true \
                             --variable FRONTEND_URL:http://172.17.0.1:8080 \
                             --outputdir /workspace/robot-results \
                             --loglevel DEBUG \
-                            /workspace/robot-tests/test || echo 'Tests completed with failures'
+                            /workspace/robot-tests/test
                     "
                     
                     echo "RF container 'rf-tests' is still running. Access it with: docker exec -it rf-tests bash"
@@ -150,23 +151,22 @@ pipeline {
             }
             post {
                 always {
-                    // Archive Robot Framework results
-                    archiveArtifacts artifacts: 'robot-results/**/*', allowEmptyArchive: true
-                    
-                    // Publish Robot Framework results (requires Robot Framework plugin)
+                    // Publish Robot Framework results
                     script {
                         try {
-                            step([
-                                $class: 'RobotPublisher',
+                            robot(
                                 outputPath: 'robot-results',
                                 outputFileName: 'output.xml',
-                                reportFileName: 'report.html',
                                 logFileName: 'log.html',
+                                reportFileName: 'report.html',
                                 passThreshold: 80.0,
-                                unstableThreshold: 60.0
-                            ])
+                                unstableThreshold: 60.0,
+                                otherFiles: '*.png,*.jpg'
+                            )
                         } catch (Exception e) {
-                            echo "Robot Framework plugin not installed, skipping result publishing"
+                            echo "Robot Framework plugin not installed or no results found: ${e.message}"
+                            // Archive as fallback
+                            archiveArtifacts artifacts: 'robot-results/**/*', allowEmptyArchive: true
                         }
                     }
                 }
