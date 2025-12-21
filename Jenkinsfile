@@ -41,8 +41,13 @@ pipeline {
             steps {
                 echo 'Checking service health...'
                 sh '''
-                    # For Docker Desktop (macOS/Windows), use host.docker.internal
-                    HOST="host.docker.internal"
+                    # Try host.docker.internal first, fallback to gateway IP
+                    if getent hosts host.docker.internal >/dev/null 2>&1; then
+                        HOST="host.docker.internal"
+                    else
+                        # Get Docker gateway IP (works on Linux containers)
+                        HOST=$(ip route | grep default | awk "{print \\$3}" || echo "172.17.0.1")
+                    fi
                     
                     echo "Using host: $HOST"
                     
@@ -75,7 +80,11 @@ pipeline {
             steps {
                 echo 'Running API tests...'
                 sh '''
-                    HOST="host.docker.internal"
+                    if getent hosts host.docker.internal >/dev/null 2>&1; then
+                        HOST="host.docker.internal"
+                    else
+                        HOST=$(ip route | grep default | awk "{print \\$3}" || echo "172.17.0.1")
+                    fi
                     
                     REGISTER_RESPONSE=$(curl -s -w "\\n%{http_code}" -X POST http://$HOST:8000/register \
                         -H "Content-Type: application/json" \
@@ -97,7 +106,11 @@ pipeline {
                 echo 'Running Robot Framework tests...'
                 sh 'mkdir -p robot-results'
                 sh '''
-                    HOST="host.docker.internal"
+                    if getent hosts host.docker.internal >/dev/null 2>&1; then
+                        HOST="host.docker.internal"
+                    else
+                        HOST=$(ip route | grep default | awk "{print \\$3}" || echo "172.17.0.1")
+                    fi
                     
                     echo "Running Robot tests against http://$HOST:8080"
                     
