@@ -4,8 +4,6 @@ pipeline {
     environment {
         COMPOSE_PROJECT_NAME = 'training-app'
         DOCKER_BUILDKIT = '1'
-        // Host path where jenkins-data is mounted (for Docker-in-Docker volume mounts)
-        JENKINS_HOST_WORKSPACE = '/Users/ruke/Desktop/training-app/jenkins-data/workspace/Training-app'
     }
     
     options {
@@ -108,24 +106,27 @@ pipeline {
         stage('Robot Framework Tests') {
             steps {
                 echo 'Setting up Robot Framework Docker container...'
-                sh """
-                    echo "Host Workspace: ${JENKINS_HOST_WORKSPACE}"
+                sh '''
+                    # Get the host path where jenkins-data is mounted by inspecting the Jenkins container
+                    JENKINS_HOST_PATH=$(docker inspect jenkins --format '{{range .Mounts}}{{if eq .Destination "/var/jenkins_home"}}{{.Source}}{{end}}{{end}}')
+                    HOST_WORKSPACE="${JENKINS_HOST_PATH}/workspace/Training-app"
+                    echo "Detected Host Workspace: $HOST_WORKSPACE"
                     
                     # Run Robot Framework container and verify setup
-                    docker run --rm \\
-                        --network host \\
-                        -v "${JENKINS_HOST_WORKSPACE}:/workspace" \\
-                        --add-host=host.docker.internal:host-gateway \\
-                        marketsquare/robotframework-browser:latest \\
+                    docker run --rm \
+                        --network host \
+                        -v "$HOST_WORKSPACE:/workspace" \
+                        --add-host=host.docker.internal:host-gateway \
+                        marketsquare/robotframework-browser:latest \
                         bash -c "
-                            echo 'Checking workspace contents...' && \\
-                            ls -la /workspace/ && \\
-                            ls -la /workspace/robot-tests/test/ && \\
-                            echo 'Initializing Browser library...' && \\
-                            rfbrowser init chromium && \\
+                            echo 'Checking workspace contents...' && \
+                            ls -la /workspace/ && \
+                            ls -la /workspace/robot-tests/test/ && \
+                            echo 'Initializing Browser library...' && \
+                            rfbrowser init chromium && \
                             echo 'Robot Framework container ready!'
                         "
-                """
+                '''
             }
             post {
                 always {
