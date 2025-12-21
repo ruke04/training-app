@@ -47,3 +47,10 @@ Click Login Button
     Wait For Element To Be Visible   ${LOGIN_BUTTON}   timeout=10s
     Click  ${LOGIN_BUTTON}
 
+Click Logout Button
+    Click  ${LOGOUT_BUTTON}
+
+Click Show all user Button
+    Wait For Element To Be Visible   ${SHOW_ALL_USERS_BUTTON}  timeout=10s
+    Click  ${SHOW_ALL_USERS_BUTTON}
+

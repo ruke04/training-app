@@ -14,7 +14,9 @@ Verify Successful User Registration
     Click Sign Up Button
     Wait For Elements State  text=Registration successful! Please login to continue.  visible  timeout=2s
 
-#Verify Registration Failed With Existing Username
-   # [Documentation]    Verify the user was registered successfully
-
-
+Verify Registration Failed With Existing Username
+    [Documentation]    Verify the user was registered successfully
+    Enter Username    testuserww
+    Enter Password    testpass123
+    Click Sign Up Button
+    Wait For Elements State  text=Registration failed: Username already exists    visible  timeout=2s
