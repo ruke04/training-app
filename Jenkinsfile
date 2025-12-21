@@ -112,14 +112,16 @@ pipeline {
                     
                     echo "Running Robot tests against http://\$HOST:8080"
                     echo "Workspace: ${WORKSPACE}"
+                    echo "Contents of robot-tests:"
                     ls -la ${WORKSPACE}/robot-tests/ || echo "robot-tests folder not found!"
+                    echo "Contents of robot-tests/test:"
                     ls -la ${WORKSPACE}/robot-tests/test/ || echo "robot-tests/test folder not found!"
                     
                     # Run Robot Framework tests in Docker container
+                    # Mount the entire workspace so paths match
                     docker run --rm \\
                         --network host \\
-                        -v "${WORKSPACE}/robot-tests:/robot" \\
-                        -v "${WORKSPACE}/robot-results:/results" \\
+                        -v "${WORKSPACE}:/workspace" \\
                         --add-host=host.docker.internal:host-gateway \\
                         marketsquare/robotframework-browser:latest \\
                         bash -c "
@@ -127,9 +129,9 @@ pipeline {
                             robot \\
                                 --variable HEADLESS:true \\
                                 --variable FRONTEND_URL:http://\$HOST:8080 \\
-                                --outputdir /results \\
+                                --outputdir /workspace/robot-results \\
                                 --loglevel DEBUG \\
-                                /robot-tests
+                                /workspace/robot-tests/test
                         "
                 """
             }
