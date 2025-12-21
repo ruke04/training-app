@@ -41,17 +41,12 @@ pipeline {
             steps {
                 echo 'Checking service health...'
                 sh '''
-                    # Try host.docker.internal first, fallback to gateway IP
-                    if getent hosts host.docker.internal >/dev/null 2>&1; then
-                        HOST="host.docker.internal"
-                    else
-                        # Get Docker gateway IP (works on Linux containers)
-                        HOST=$(ip route | grep default | awk "{print \\$3}" || echo "172.17.0.1")
-                    fi
+                    # Use Docker gateway IP (default for Docker Desktop)
+                    HOST="172.17.0.1"
                     
                     echo "Using host: $HOST"
                     
-                    for i in {1..30}; do
+                    for i in 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26 27 28 29 30; do
                         if curl -sf --connect-timeout 5 http://$HOST:8000/api-docs >/dev/null 2>&1; then
                             echo "Backend is ready!"
                             break
@@ -60,7 +55,7 @@ pipeline {
                         sleep 2
                     done
                     
-                    for i in {1..30}; do
+                    for i in 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26 27 28 29 30; do
                         if curl -sf --connect-timeout 5 http://$HOST:8080 >/dev/null 2>&1; then
                             echo "Frontend is ready!"
                             break
@@ -80,11 +75,7 @@ pipeline {
             steps {
                 echo 'Running API tests...'
                 sh '''
-                    if getent hosts host.docker.internal >/dev/null 2>&1; then
-                        HOST="host.docker.internal"
-                    else
-                        HOST=$(ip route | grep default | awk "{print \\$3}" || echo "172.17.0.1")
-                    fi
+                    HOST="172.17.0.1"
                     
                     REGISTER_RESPONSE=$(curl -s -w "\\n%{http_code}" -X POST http://$HOST:8000/register \
                         -H "Content-Type: application/json" \
@@ -106,11 +97,7 @@ pipeline {
                 echo 'Running Robot Framework tests...'
                 sh 'mkdir -p robot-results'
                 sh '''
-                    if getent hosts host.docker.internal >/dev/null 2>&1; then
-                        HOST="host.docker.internal"
-                    else
-                        HOST=$(ip route | grep default | awk "{print \\$3}" || echo "172.17.0.1")
-                    fi
+                    HOST="172.17.0.1"
                     
                     echo "Running Robot tests against http://$HOST:8080"
                     
