@@ -2,11 +2,15 @@
 Library    Browser
 Resource    ../pageobject/training_app_page.robot
 
+*** Variables ***
+${HEADLESS}         false
+${FRONTEND_URL}     http://localhost:8080
+
 *** Keywords ***
 
 Launch Training App
     New Browser  Chromium  headless=${HEADLESS}
-    New Page    http://localhost:8080
+    New Page    ${FRONTEND_URL}
     Wait For Element To Be Visible   ${TRAINING_APP_TITLE}   timeout=10s
 
 

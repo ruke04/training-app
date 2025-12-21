@@ -25,6 +25,8 @@ if [[ "$OSTYPE" == "darwin"* ]]; then
       -p 50000:50000 \
       -v "$(pwd)/jenkins-data:/var/jenkins_home" \
       -v /var/run/docker.sock:/var/run/docker.sock \
+      --add-host=host.docker.internal:host-gateway \
+      -e JAVA_OPTS="-Dhudson.model.DirectoryBrowserSupport.CSP=" \
       jenkins/jenkins:lts
 
     echo "⏳ Installing Docker CLI + Compose plugin inside Jenkins..."
@@ -57,18 +59,20 @@ else
       -v /var/run/docker.sock:/var/run/docker.sock \
       -v "$(which docker):/usr/bin/docker" \
       --group-add "$DOCKER_GID" \
+      --add-host=host.docker.internal:host-gateway \
+      -e JAVA_OPTS="-Dhudson.model.DirectoryBrowserSupport.CSP=" \
       jenkins/jenkins:lts
 fi
 
 echo "⏳ Waiting for Jenkins to start..."
 
 # Wait for Jenkins to generate initialAdminPassword
-for i in {1..20}; do
+for i in {1..40}; do
     if docker exec jenkins test -f /var/jenkins_home/secrets/initialAdminPassword 2>/dev/null; then
         break
     fi
-    echo "   ...waiting ($i/20)"
-    sleep 3
+    echo "   ...waiting ($i/40)"
+    sleep 5
 done
 
 echo ""

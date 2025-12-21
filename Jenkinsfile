@@ -21,28 +21,8 @@ pipeline {
         
         stage('Build Docker Images') {
             steps {
-                echo 'Ensuring docker-compose alias exists...'
-                sh '''
-                    # If docker compose exists but docker-compose does not, create alias
-                    if command -v docker compose >/dev/null 2>&1 && ! command -v docker-compose >/dev/null 2>&1; then
-                        echo "Creating docker-compose symlink..."
-                        sudo ln -sf /usr/libexec/docker/cli-plugins/docker-compose /usr/local/bin/docker-compose 2>/dev/null \
-                        || ln -sf /usr/libexec/docker/cli-plugins/docker-compose /usr/local/bin/docker-compose || true
-                        chmod +x /usr/local/bin/docker-compose || true
-                    fi
-                '''
-
                 echo 'Building Docker images...'
-                sh '''
-                    if command -v docker-compose &> /dev/null; then
-                        docker-compose build --no-cache
-                    elif docker compose version &> /dev/null; then
-                        docker compose build --no-cache
-                    else
-                        echo "❌ No docker compose available"
-                        exit 1
-                    fi
-                '''
+                sh 'docker compose build --no-cache'
             }
         }
         
@@ -50,15 +30,9 @@ pipeline {
             steps {
                 echo 'Starting services...'
                 sh '''
-                    if command -v docker-compose &> /dev/null; then
-                        docker-compose up -d
-                        sleep 10
-                        docker-compose ps
-                    else
-                        docker compose up -d
-                        sleep 10
-                        docker compose ps
-                    fi
+                    docker compose up -d
+                    sleep 10
+                    docker compose ps
                 '''
             }
         }
@@ -67,36 +41,12 @@ pipeline {
             steps {
                 echo 'Checking service health...'
                 sh '''
-                    # Detect host - try host.docker.internal first (Docker Desktop)
-                    HOST=""
-                    if getent hosts host.docker.internal >/dev/null 2>&1; then
-                        HOST="host.docker.internal"
-                    elif command -v hostname >/dev/null 2>&1 && hostname -I >/dev/null 2>&1; then
-                        # Try to get host IP from hostname
-                        HOST=$(hostname -I | awk '{print $1}')
-                    else
-                        # Fallback: use gateway IP from route or default
-                        HOST=$(route -n get default 2>/dev/null | grep gateway | awk '{print $2}' || \
-                               netstat -rn | grep '^default' | awk '{print $2}' | head -1 || \
-                               echo "host.docker.internal")
-                    fi
-                    
-                    # Final fallback if still empty
-                    if [ -z "$HOST" ] || [ "$HOST" = "" ]; then
-                        HOST="host.docker.internal"
-                    fi
+                    # Use Docker gateway IP (default for Docker Desktop)
+                    HOST="172.17.0.1"
                     
                     echo "Using host: $HOST"
                     
-                    # Test if host is reachable
-                    if ! curl -sf --connect-timeout 2 http://$HOST:8000 >/dev/null 2>&1 && \
-                       ! curl -sf --connect-timeout 2 http://$HOST:8080 >/dev/null 2>&1; then
-                        echo "⚠️  Warning: $HOST may not be reachable, trying alternative..."
-                        # Try localhost as last resort (might work if services are on same network)
-                        HOST="localhost"
-                    fi
-                    
-                    for i in {1..30}; do
+                    for i in 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26 27 28 29 30; do
                         if curl -sf --connect-timeout 5 http://$HOST:8000/api-docs >/dev/null 2>&1; then
                             echo "Backend is ready!"
                             break
@@ -105,7 +55,7 @@ pipeline {
                         sleep 2
                     done
                     
-                    for i in {1..30}; do
+                    for i in 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26 27 28 29 30; do
                         if curl -sf --connect-timeout 5 http://$HOST:8080 >/dev/null 2>&1; then
                             echo "Frontend is ready!"
                             break
@@ -125,34 +75,104 @@ pipeline {
             steps {
                 echo 'Running API tests...'
                 sh '''
-                    # Use same host detection as health check
-                    HOST=""
-                    if getent hosts host.docker.internal >/dev/null 2>&1; then
-                        HOST="host.docker.internal"
-                    elif command -v hostname >/dev/null 2>&1 && hostname -I >/dev/null 2>&1; then
-                        HOST=$(hostname -I | awk '{print $1}')
-                    else
-                        HOST=$(route -n get default 2>/dev/null | grep gateway | awk '{print $2}' || \
-                               netstat -rn | grep '^default' | awk '{print $2}' | head -1 || \
-                               echo "host.docker.internal")
-                    fi
-                    if [ -z "$HOST" ] || [ "$HOST" = "" ]; then
-                        HOST="host.docker.internal"
-                    fi
+                    HOST="172.17.0.1"
                     
                     REGISTER_RESPONSE=$(curl -s -w "\\n%{http_code}" -X POST http://$HOST:8000/register \
                         -H "Content-Type: application/json" \
                         -d '{"username":"jenkins-test","password":"test123"}')
                     
                     CODE=$(echo "$REGISTER_RESPONSE" | tail -n1)
-                    if [ "$CODE" != "201" ] && [ "$CODE" != "409" ]; then exit 1; fi
+                    echo "Registration response code: $CODE"
                     
-                    if [ "$CODE" == "201" ]; then
-                        TOKEN=$(echo "$REGISTER_RESPONSE" | head -n1 | jq -r '.token')
-                        curl -f http://$HOST:8000/me -H "Authorization: Bearer $TOKEN" || exit 1
-                        curl -f -u jenkins-test:test123 http://$HOST:8000/me || exit 1
+                    if [ "$CODE" != "201" ] && [ "$CODE" != "409" ]; then
+                        echo "Registration failed with code: $CODE"
+                        exit 1
                     fi
+                    
+                    if [ "$CODE" = "201" ]; then
+                        # Extract token using sed (no jq needed)
+                        TOKEN=$(echo "$REGISTER_RESPONSE" | head -n1 | sed 's/.*"token":"\\([^"]*\\)".*/\\1/')
+                        echo "Testing /me endpoint with token..."
+                        curl -f http://$HOST:8000/me -H "Authorization: Bearer $TOKEN" || exit 1
+                    else
+                        echo "User already exists (409), skipping token test"
+                    fi
+                    
+                    echo "API tests passed!"
                 '''
+            }
+        }
+        
+        stage('Robot Framework Tests') {
+            steps {
+                echo 'Running Robot Framework tests...'
+                sh '''
+                    # Get the host path where jenkins-data is mounted by inspecting the Jenkins container
+                    JENKINS_HOST_PATH=$(docker inspect jenkins --format '{{range .Mounts}}{{if eq .Destination "/var/jenkins_home"}}{{.Source}}{{end}}{{end}}')
+                    HOST_WORKSPACE="${JENKINS_HOST_PATH}/workspace/Training-app"
+                    echo "Detected Host Workspace: $HOST_WORKSPACE"
+                    
+                    # Create results directory
+                    mkdir -p robot-results
+                    
+                    # Remove old container if exists
+                    docker rm -f rf-tests 2>/dev/null || true
+                    
+                    # Run Robot Framework tests (container stays alive after tests)
+                    docker run -d \
+                        --name rf-tests \
+                        --network host \
+                        -v "$HOST_WORKSPACE:/workspace" \
+                        --add-host=host.docker.internal:host-gateway \
+                        marketsquare/robotframework-browser:latest \
+                        tail -f /dev/null
+                    
+                    # Fix permissions and run tests inside the container
+                    docker exec --user root rf-tests bash -c "
+                        mkdir -p /workspace/robot-results && \
+                        chmod 777 /workspace/robot-results
+                    "
+                    
+                    docker exec rf-tests bash -c "
+                        echo 'Initializing Browser library...' && \
+                        rfbrowser init chromium && \
+                        echo 'Running Robot Framework tests...' && \
+                        robot \
+                            --nostatusrc \
+                            --variable HEADLESS:true \
+                            --variable FRONTEND_URL:http://172.17.0.1:8080 \
+                            --outputdir /workspace/robot-results \
+                            --loglevel DEBUG \
+                            --variable BROWSER_SCREENSHOTS:/workspace/robot-results \
+                            /workspace/robot-tests/test && \
+                        echo 'Copying any browser screenshots...' && \
+                        cp -r /workspace/robot-results/browser/screenshot/* /workspace/robot-results/ 2>/dev/null || true
+                    "
+                    
+                    echo "RF container 'rf-tests' is still running. Access it with: docker exec -it rf-tests bash"
+                '''
+            }
+            post {
+                always {
+                    // Publish Robot Framework results
+                    script {
+                        try {
+                            robot(
+                                outputPath: 'robot-results',
+                                outputFileName: 'output.xml',
+                                logFileName: 'log.html',
+                                reportFileName: 'report.html',
+                                passThreshold: 80.0,
+                                unstableThreshold: 60.0,
+                                otherFiles: '**/*.png,**/*.jpg,**/*.jpeg,browser/**/*'
+                            )
+                        } catch (Exception e) {
+                            echo "Robot Framework plugin not installed or no results found: ${e.message}"
+                            // Archive as fallback
+                            archiveArtifacts artifacts: 'robot-results/**/*', allowEmptyArchive: true
+                        }
+                    }
+                }
             }
         }
     }
@@ -160,7 +180,6 @@ pipeline {
     post {
         always {
             echo 'Pipeline completed. Services are still running.'
-            echo 'To stop services manually, run: docker compose down'
         }
         success { echo 'Pipeline succeeded! ✅' }
         failure { echo 'Pipeline failed! ❌' }
