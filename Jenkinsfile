@@ -143,7 +143,10 @@ pipeline {
                             --variable FRONTEND_URL:http://172.17.0.1:8080 \
                             --outputdir /workspace/robot-results \
                             --loglevel DEBUG \
-                            /workspace/robot-tests/test
+                            --variable BROWSER_SCREENSHOTS:/workspace/robot-results \
+                            /workspace/robot-tests/test && \
+                        echo 'Copying any browser screenshots...' && \
+                        cp -r /workspace/robot-results/browser/screenshot/* /workspace/robot-results/ 2>/dev/null || true
                     "
                     
                     echo "RF container 'rf-tests' is still running. Access it with: docker exec -it rf-tests bash"
@@ -161,7 +164,7 @@ pipeline {
                                 reportFileName: 'report.html',
                                 passThreshold: 80.0,
                                 unstableThreshold: 60.0,
-                                otherFiles: '*.png,*.jpg'
+                                otherFiles: '**/*.png,**/*.jpg,**/*.jpeg,browser/**/*'
                             )
                         } catch (Exception e) {
                             echo "Robot Framework plugin not installed or no results found: ${e.message}"
