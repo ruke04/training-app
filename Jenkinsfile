@@ -129,7 +129,7 @@ pipeline {
                                 --variable FRONTEND_URL:http://\$HOST:8080 \\
                                 --outputdir /results \\
                                 --loglevel DEBUG \\
-                                /robot/test
+                                /robot-tests
                         "
                 """
             }
