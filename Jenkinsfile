@@ -82,12 +82,23 @@ pipeline {
                         -d '{"username":"jenkins-test","password":"test123"}')
                     
                     CODE=$(echo "$REGISTER_RESPONSE" | tail -n1)
-                    if [ "$CODE" != "201" ] && [ "$CODE" != "409" ]; then exit 1; fi
+                    echo "Registration response code: $CODE"
+                    
+                    if [ "$CODE" != "201" ] && [ "$CODE" != "409" ]; then
+                        echo "Registration failed with code: $CODE"
+                        exit 1
+                    fi
                     
                     if [ "$CODE" = "201" ]; then
-                        TOKEN=$(echo "$REGISTER_RESPONSE" | head -n1 | jq -r '.token')
+                        # Extract token using sed (no jq needed)
+                        TOKEN=$(echo "$REGISTER_RESPONSE" | head -n1 | sed 's/.*"token":"\\([^"]*\\)".*/\\1/')
+                        echo "Testing /me endpoint with token..."
                         curl -f http://$HOST:8000/me -H "Authorization: Bearer $TOKEN" || exit 1
+                    else
+                        echo "User already exists (409), skipping token test"
                     fi
+                    
+                    echo "API tests passed!"
                 '''
             }
         }
