@@ -443,19 +443,12 @@
 
 // Logout function - exposed globally for onclick handler
 function logout() {
-    // Clear token from localStorage
-    try {
-        localStorage.removeItem('token');
-    } catch (e) {
-        console.warn('Could not clear localStorage:', e);
-    }
-    
     // Clear auth_token cookie
     document.cookie = 'auth_token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;';
     document.cookie = 'auth_token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/; domain=' + window.location.hostname;
     
-    // Redirect to main app (handle port difference - protected is on 8000, frontend on 8080)
-    window.location.href = window.location.origin.replace(':8000', ':8080');
+    // Redirect to main app with logout flag (main app will clear its localStorage)
+    window.location.href = window.location.origin.replace(':8000', ':8080') + '?logout=true';
 }
 
 // Make logout available globally

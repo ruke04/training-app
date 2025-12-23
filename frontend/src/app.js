@@ -6,6 +6,15 @@ let token = null
 let currentUsername = null
 let pendingModalAction = null
 
+// Check for logout parameter from protected site
+if (window.location.search.includes('logout=true')) {
+    try {
+        localStorage.removeItem('token')
+    } catch (_) {}
+    // Clean up URL (remove query string)
+    window.history.replaceState({}, document.title, window.location.pathname)
+}
+
 try {
     const saved = localStorage.getItem('token')
     if (saved) {
