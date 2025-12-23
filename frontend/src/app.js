@@ -356,6 +356,12 @@ function logout() {
     try {
         localStorage.removeItem('token')
     } catch (_) {}
+    // Update profile display to show "Not logged in"
+    updateProfileDisplay(null)
+    // Clear any previous results
+    document.getElementById('me').innerText = ''
+    document.getElementById('result').innerText = ''
+    
     // Clear the auth_token cookie by loading logout endpoint in hidden iframe
     // This ensures the cookie is cleared in the browser's context for localhost:8000
     const iframe = document.createElement('iframe')
