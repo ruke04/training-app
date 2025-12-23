@@ -11,6 +11,7 @@ ${FRONTEND_URL}     http://localhost:8080
 
 Launch Training App
     New Browser  Chromium  headless=${HEADLESS}
+    New Context    viewport={'width': 1920, 'height': 1080}
     New Page    ${FRONTEND_URL}
     # Handle ngrok splash page if present (only when using ngrok URL)
     ${ngrok_button_exists}=    Run Keyword And Return Status    Wait For Elements State    text=Visit Site    visible    timeout=3s
