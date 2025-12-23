@@ -1,5 +1,6 @@
 
-const API_URL = `http://${window.location.hostname}:8000`
+// Use relative URL - nginx proxies /api/* to backend
+const API_URL = '/api'
 
 let token = null
 let currentUsername = null

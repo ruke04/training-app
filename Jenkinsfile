@@ -46,15 +46,7 @@ pipeline {
                     
                     echo "Using host: $HOST"
                     
-                    for i in 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26 27 28 29 30; do
-                        if curl -sf --connect-timeout 5 http://$HOST:8000/api-docs >/dev/null 2>&1; then
-                            echo "Backend is ready!"
-                            break
-                        fi
-                        echo "Waiting for backend on $HOST:8000... ($i/30)"
-                        sleep 2
-                    done
-                    
+                    # Wait for frontend (nginx) which proxies to backend
                     for i in 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26 27 28 29 30; do
                         if curl -sf --connect-timeout 5 http://$HOST:8080 >/dev/null 2>&1; then
                             echo "Frontend is ready!"
@@ -64,9 +56,19 @@ pipeline {
                         sleep 2
                     done
                     
+                    # Wait for API via nginx proxy
+                    for i in 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26 27 28 29 30; do
+                        if curl -sf --connect-timeout 5 http://$HOST:8080/api/api-docs >/dev/null 2>&1; then
+                            echo "Backend API is ready!"
+                            break
+                        fi
+                        echo "Waiting for backend API on $HOST:8080/api... ($i/30)"
+                        sleep 2
+                    done
+                    
                     echo "Testing final connectivity..."
-                    curl -i http://$HOST:8000/api-docs || exit 1
                     curl -i http://$HOST:8080 || exit 1
+                    curl -i http://$HOST:8080/api/api-docs || exit 1
                 '''
             }
         }
@@ -77,7 +79,8 @@ pipeline {
                 sh '''
                     HOST="172.17.0.1"
                     
-                    REGISTER_RESPONSE=$(curl -s -w "\\n%{http_code}" -X POST http://$HOST:8000/register \
+                    # Use /api prefix through nginx proxy
+                    REGISTER_RESPONSE=$(curl -s -w "\\n%{http_code}" -X POST http://$HOST:8080/api/register \
                         -H "Content-Type: application/json" \
                         -d '{"username":"jenkins-test","password":"test123"}')
                     
@@ -93,7 +96,7 @@ pipeline {
                         # Extract token using sed (no jq needed)
                         TOKEN=$(echo "$REGISTER_RESPONSE" | head -n1 | sed 's/.*"token":"\\([^"]*\\)".*/\\1/')
                         echo "Testing /me endpoint with token..."
-                        curl -f http://$HOST:8000/me -H "Authorization: Bearer $TOKEN" || exit 1
+                        curl -f http://$HOST:8080/api/me -H "Authorization: Bearer $TOKEN" || exit 1
                     else
                         echo "User already exists (409), skipping token test"
                     fi
@@ -140,7 +143,7 @@ pipeline {
                         robot \
                             --nostatusrc \
                             --variable HEADLESS:true \
-                            --variable FRONTEND_URL:http://172.17.0.1:8080 \
+                            --variable FRONTEND_URL:http://localhost:8080 \
                             --outputdir /workspace/robot-results \
                             --loglevel DEBUG \
                             --variable BROWSER_SCREENSHOTS:/workspace/robot-results \
