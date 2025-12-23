@@ -112,8 +112,11 @@ pipeline {
                 sh '''
                     # Get the host path where jenkins-data is mounted by inspecting the Jenkins container
                     JENKINS_HOST_PATH=$(docker inspect jenkins --format '{{range .Mounts}}{{if eq .Destination "/var/jenkins_home"}}{{.Source}}{{end}}{{end}}')
-                    HOST_WORKSPACE="${JENKINS_HOST_PATH}/workspace/Training-app"
+                    # Use JOB_NAME from Jenkins (replace slashes with underscores for folder jobs)
+                    JOB_DIR=$(echo "$JOB_NAME" | tr '/' '_')
+                    HOST_WORKSPACE="${JENKINS_HOST_PATH}/workspace/${JOB_DIR}"
                     echo "Detected Host Workspace: $HOST_WORKSPACE"
+                    echo "Job Name: $JOB_NAME -> Directory: $JOB_DIR"
                     
                     # Create results directory
                     mkdir -p robot-results
