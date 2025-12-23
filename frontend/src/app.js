@@ -59,6 +59,7 @@ function updateProfileDisplay(username) {
     const profileDisplay = document.getElementById('profile_display')
     const profileUsername = document.getElementById('profile_username')
     const profileStatus = document.getElementById('profile_status')
+    const changePasswordSection = document.getElementById('change_password_section')
     
     if (username) {
         currentUsername = username
@@ -66,12 +67,16 @@ function updateProfileDisplay(username) {
         profileStatus.textContent = 'Logged in'
         profileStatus.style.color = 'var(--accent-2)'
         profileDisplay.classList.add('show')
+        // Show change password section when logged in
+        if (changePasswordSection) changePasswordSection.style.display = 'block'
     } else {
         currentUsername = null
         profileUsername.textContent = '-'
         profileStatus.textContent = 'Not logged in'
         profileStatus.style.color = 'var(--muted)'
         profileDisplay.classList.remove('show')
+        // Hide change password section when logged out
+        if (changePasswordSection) changePasswordSection.style.display = 'none'
     }
 }
 
@@ -372,6 +377,68 @@ function logout() {
     showNotification('Logged out successfully', 'success')
 }
 
+async function changePassword() {
+    if (!token) {
+        showNotification('You must be logged in to change password.', 'error')
+        return
+    }
+    
+    const currentPassword = document.getElementById('current_password').value
+    const newPassword = document.getElementById('new_password').value
+    const confirmNewPassword = document.getElementById('confirm_new_password').value
+    const resultEl = document.getElementById('change_password_result')
+    
+    // Validation
+    if (!currentPassword || !newPassword || !confirmNewPassword) {
+        resultEl.innerText = 'Please fill in all fields'
+        resultEl.style.color = 'var(--danger)'
+        return
+    }
+    
+    if (newPassword.length < 5) {
+        resultEl.innerText = 'New password must be at least 5 characters'
+        resultEl.style.color = 'var(--danger)'
+        return
+    }
+    
+    if (newPassword !== confirmNewPassword) {
+        resultEl.innerText = 'New passwords do not match'
+        resultEl.style.color = 'var(--danger)'
+        return
+    }
+    
+    try {
+        const res = await fetch(`${API_URL}/me/password`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify({
+                current_password: currentPassword,
+                new_password: newPassword
+            })
+        })
+        
+        if (res.ok) {
+            resultEl.innerText = 'Password changed successfully!'
+            resultEl.style.color = 'var(--accent-2)'
+            // Clear the form
+            document.getElementById('current_password').value = ''
+            document.getElementById('new_password').value = ''
+            document.getElementById('confirm_new_password').value = ''
+            showNotification('Password changed successfully!', 'success')
+        } else {
+            const err = await res.json().catch(() => ({}))
+            resultEl.innerText = err.detail || 'Failed to change password'
+            resultEl.style.color = 'var(--danger)'
+        }
+    } catch (error) {
+        resultEl.innerText = 'Error: ' + error.message
+        resultEl.style.color = 'var(--danger)'
+    }
+}
+
 // Expose for inline onclick handlers
 window.register = register
 window.login = login
@@ -383,3 +450,4 @@ window.listUsers = listUsers
 window.deleteUser = deleteUser
 window.closeModal = closeModal
 window.confirmModalAction = confirmModalAction
+window.changePassword = changePassword

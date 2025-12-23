@@ -61,6 +61,11 @@ class LoginRequest(BaseModel):
     password: str
 
 
+class ChangePasswordRequest(BaseModel):
+    current_password: str = Field(min_length=1)
+    new_password: str = Field(min_length=5, max_length=255)
+
+
 class TokenResponse(BaseModel):
     token: str
 
@@ -246,6 +251,32 @@ def delete_me(
     db.commit()
     
     return {"message": f"User '{username}' deleted successfully"}
+
+
+@app.put("/me/password", tags=["auth"], summary="Change current user's password")
+def change_password(
+    data: ChangePasswordRequest,
+    authorization: str = Header(default=""),
+    bearer_token: Optional[HTTPAuthorizationCredentials] = Security(http_bearer),
+    db: Session = Depends(get_db),
+):
+    """Change the current user's password. Requires authentication and current password."""
+    username = _get_current_username(authorization, bearer_token, db)
+    
+    # Find the user
+    user = db.query(User).filter(User.username == username).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    # Verify current password
+    if not verify_password(data.current_password, user.password_hash):
+        raise HTTPException(status_code=401, detail="Current password is incorrect")
+    
+    # Update password
+    user.password_hash = hash_password(data.new_password)
+    db.commit()
+    
+    return {"message": "Password changed successfully"}
 
 
 @app.delete("/users/{username}", tags=["auth"], summary="Delete a specific user by username")

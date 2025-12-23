@@ -262,6 +262,20 @@
             <pre id="me" style="margin-top: 12px;"></pre>
         </section>
 
+        <section class="card" id="change_password_section" style="margin-top:16px; display: none;">
+            <div class="section-title">
+                <h2>Change Password</h2>
+            </div>
+            <p class="hint">Enter your current password and a new password.</p>
+            <form>
+                <input id="current_password" type="password" placeholder="Current password">
+                <input id="new_password" type="password" placeholder="New password (min 5 chars)">
+                <input id="confirm_new_password" type="password" placeholder="Confirm new password">
+                <button class="btn" type="button" onclick="changePassword()">Change Password</button>
+            </form>
+            <p id="change_password_result" class="result"></p>
+        </section>
+
         <section class="card" style="margin-top:16px;">
             <div class="section-title">
                 <h2>User Management</h2>
