@@ -64,7 +64,7 @@ status:
 
 # Run Robot Framework tests
 test:
-	robot -d results robot-tests/tests
+	robot -d robot-tests/test_results robot-tests/test
 
 # Open PostgreSQL shell
 db-shell:
@@ -85,11 +85,11 @@ db-delete-users:
 
 # Open API documentation in browser
 api-docs:
-	@echo "Opening Swagger UI at http://localhost:8000/api-docs"
-	@open http://localhost:8000/api-docs || xdg-open http://localhost:8000/api-docs || echo "Please open http://localhost:8000/api-docs in your browser"
+	@echo "Opening Swagger UI at http://localhost:8080/api/api-docs"
+	@open http://localhost:8080/api/api-docs || xdg-open http://localhost:8080/api/api-docs || echo "Please open http://localhost:8080/api/api-docs in your browser"
 
 # Clean up: stop services and remove volumes
 clean:
 	docker compose down -v
-	rm -rf results
+	rm -rf robot-tests/test_results
 
