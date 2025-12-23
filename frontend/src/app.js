@@ -1,4 +1,6 @@
 
+const API_URL = `http://${window.location.hostname}:8000`
+
 let token = null
 let currentUsername = null
 let pendingModalAction = null
@@ -66,7 +68,7 @@ function updateProfileDisplay(username) {
 async function register() {
     const username = document.getElementById('reg_username').value
     const password = document.getElementById('reg_password').value
-    const res = await fetch('http://localhost:8000/register', {
+    const res = await fetch(`${API_URL}/register`, {
         method: 'POST',
         headers: {'Content-Type': 'application/json'},
         body: JSON.stringify({username, password})
@@ -89,7 +91,7 @@ async function register() {
 async function login() {
     const username = document.getElementById('username').value
     const password = document.getElementById('password').value
-    const res = await fetch('http://localhost:8000/login', {
+    const res = await fetch(`${API_URL}/login`, {
         method: 'POST',
         headers: {'Content-Type': 'application/json'},
         body: JSON.stringify({username, password})
@@ -112,7 +114,7 @@ async function fetchMe() {
         document.getElementById('me').innerText = 'Not logged in'
         return
     }
-    const res = await fetch('http://localhost:8000/me', {
+    const res = await fetch(`${API_URL}/me`, {
         headers: { 'Authorization': `Bearer ${token}` }
     })
     if (res.ok) {
@@ -146,7 +148,7 @@ function openProtected() {
         showNotification('You are not logged in. Please login first.', 'error')
         return
     }
-    const url = `http://localhost:8000/protected?token=${encodeURIComponent(token)}`
+    const url = `${API_URL}/protected?token=${encodeURIComponent(token)}`
     window.location.href = url
 }
 
@@ -159,7 +161,7 @@ async function listUsers() {
     
     try {
         console.log('Fetching users with token:', token.substring(0, 20) + '...')
-        const res = await fetch('http://localhost:8000/users', {
+        const res = await fetch(`${API_URL}/users`, {
             method: 'GET',
             headers: { 
                 'Authorization': `Bearer ${token}`,
@@ -231,7 +233,7 @@ async function performDeleteUser(username) {
     
     try {
         console.log('Deleting user:', username)
-        const res = await fetch(`http://localhost:8000/users/${encodeURIComponent(username)}`, {
+        const res = await fetch(`${API_URL}/users/${encodeURIComponent(username)}`, {
             method: 'DELETE',
             headers: { 
                 'Authorization': `Bearer ${token}`,
@@ -288,7 +290,7 @@ async function performDeleteAccount() {
     
     try {
         console.log('Deleting my account')
-        const res = await fetch('http://localhost:8000/me', {
+        const res = await fetch(`${API_URL}/me`, {
             method: 'DELETE',
             headers: { 
                 'Authorization': `Bearer ${token}`,
@@ -315,7 +317,7 @@ async function performDeleteAccount() {
             iframe.style.display = 'none'
             iframe.style.width = '0'
             iframe.style.height = '0'
-            iframe.src = 'http://localhost:8000/logout'
+            iframe.src = `${API_URL}/logout`
             document.body.appendChild(iframe)
             setTimeout(() => {
                 if (iframe.parentNode) {
@@ -345,7 +347,7 @@ function logout() {
     iframe.style.display = 'none'
     iframe.style.width = '0'
     iframe.style.height = '0'
-    iframe.src = 'http://localhost:8000/logout'
+    iframe.src = `${API_URL}/logout`
     document.body.appendChild(iframe)
     
     // Remove iframe after it loads

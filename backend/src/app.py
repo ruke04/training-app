@@ -36,9 +36,15 @@ http_basic = HTTPBasic()
 http_bearer = HTTPBearer(auto_error=False)
 
 cors_origin = os.getenv("CORS_ORIGIN", "*")
+# Parse comma-separated origins or use wildcard
+if cors_origin == "*":
+    allowed_origins = ["*"]
+else:
+    allowed_origins = [origin.strip() for origin in cors_origin.split(",")]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[cors_origin] if cors_origin != "*" else ["*"],
+    allow_origins=allowed_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
