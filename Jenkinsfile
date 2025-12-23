@@ -121,7 +121,7 @@ pipeline {
                     # Remove old container if exists
                     docker rm -f rf-tests 2>/dev/null || true
                     
-                    # Run Robot Framework tests (container stays alive after tests)
+                    # Run Robot Framework tests container
                     docker run -d \
                         --name rf-tests \
                         --network host \
@@ -130,29 +130,25 @@ pipeline {
                         marketsquare/robotframework-browser:latest \
                         tail -f /dev/null
                     
-                    # Fix permissions and run tests inside the container
+                    # Fix permissions
                     docker exec --user root rf-tests bash -c "
                         mkdir -p /workspace/robot-results && \
                         chmod 777 /workspace/robot-results
                     "
                     
+                    # Run tests (exit code reflects test results)
                     docker exec rf-tests bash -c "
                         echo 'Initializing Browser library...' && \
                         rfbrowser init chromium && \
                         echo 'Running Robot Framework tests...' && \
                         robot \
-                            --nostatusrc \
                             --variable HEADLESS:true \
                             --variable FRONTEND_URL:http://localhost:8080 \
                             --outputdir /workspace/robot-results \
-                            --loglevel DEBUG \
-                            --variable BROWSER_SCREENSHOTS:/workspace/robot-results \
                             /workspace/robot-tests/test && \
                         echo 'Copying any browser screenshots...' && \
                         cp -r /workspace/robot-results/browser/screenshot/* /workspace/robot-results/ 2>/dev/null || true
                     "
-                    
-                    echo "RF container 'rf-tests' is still running. Access it with: docker exec -it rf-tests bash"
                 '''
             }
             post {
@@ -165,13 +161,12 @@ pipeline {
                                 outputFileName: 'output.xml',
                                 logFileName: 'log.html',
                                 reportFileName: 'report.html',
-                                passThreshold: 80.0,
-                                unstableThreshold: 60.0,
+                                passThreshold: 100.0,
+                                unstableThreshold: 80.0,
                                 otherFiles: '**/*.png,**/*.jpg,**/*.jpeg,browser/**/*'
                             )
                         } catch (Exception e) {
                             echo "Robot Framework plugin not installed or no results found: ${e.message}"
-                            // Archive as fallback
                             archiveArtifacts artifacts: 'robot-results/**/*', allowEmptyArchive: true
                         }
                     }
@@ -182,7 +177,16 @@ pipeline {
     
     post {
         always {
-            echo 'Pipeline completed. Services are still running.'
+            echo 'Cleaning up...'
+            sh '''
+                # Clean up RF test container
+                docker stop rf-tests 2>/dev/null || true
+
+                # Stop application containers (keep them for debugging)
+                docker compose stop 2>/dev/null || true
+                
+                echo 'Cleanup complete.'
+            '''
         }
         success { echo 'Pipeline succeeded! ✅' }
         failure { echo 'Pipeline failed! ❌' }
