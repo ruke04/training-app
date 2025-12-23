@@ -57,11 +57,25 @@ else
       -p 50000:50000 \
       -v "$(pwd)/jenkins-data:/var/jenkins_home" \
       -v /var/run/docker.sock:/var/run/docker.sock \
-      -v "$(which docker):/usr/bin/docker" \
       --group-add "$DOCKER_GID" \
       --add-host=host.docker.internal:host-gateway \
       -e JAVA_OPTS="-Dhudson.model.DirectoryBrowserSupport.CSP=" \
       jenkins/jenkins:lts
+
+    echo "⏳ Installing Docker CLI + Compose plugin inside Jenkins..."
+    sleep 5
+    docker exec -u root jenkins sh -c "
+        apt-get update -qq && \
+        apt-get install -y ca-certificates curl gnupg -qq && \
+        install -m 0755 -d /etc/apt/keyrings && \
+        curl -fsSL https://download.docker.com/linux/debian/gpg | gpg --dearmor -o /etc/apt/keyrings/docker.gpg && \
+        chmod a+r /etc/apt/keyrings/docker.gpg && \
+        echo \"deb [arch=\$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/debian \$(. /etc/os-release && echo \$VERSION_CODENAME) stable\" > /etc/apt/sources.list.d/docker.list && \
+        apt-get update -qq && \
+        apt-get install -y docker-ce-cli docker-compose-plugin -qq && \
+        ln -s /usr/libexec/docker/cli-plugins/docker-compose /usr/local/bin/docker-compose || true && \
+        chmod 666 /var/run/docker.sock
+    " || echo "⚠️ Docker install may need manual setup"
 fi
 
 echo "⏳ Waiting for Jenkins to start..."
