@@ -4,8 +4,8 @@ Resource         ../keywords/common.robot
 Suite Setup      Launch training App
 Suite Teardown   Close browser
 
-
 *** Test cases ***
+
 Verify successful user login
     [Documentation]   verify the User is able to log in succesfully
     Enter Login Username     Bibi  
