@@ -1,303 +1,229 @@
 # Jenkins CI/CD Setup Guide
 
-This guide explains how to set up and use Jenkins for continuous integration and deployment of the Training App.
+Complete guide for setting up Jenkins to run the Training App CI/CD pipeline with Robot Framework tests.
 
 ## Quick Start
 
-Run the setup script to start Jenkins locally:
 ```bash
+# Start Jenkins (works on macOS and Linux)
 ./jenkins-local-setup.sh
+
+# Access Jenkins at http://localhost:8081
+# Use the admin password shown in the terminal output
 ```
 
-This will:
-- Start Jenkins in a Docker container on port **8081**
-- Install Docker CLI and docker-compose plugin
-- Display the initial admin password
-- Configure Docker socket access
+## What the Pipeline Does
+
+1. **Checkout** - Gets source code from repository
+2. **Build Docker Images** - Builds backend and frontend containers
+3. **Start Services** - Starts db, backend, and frontend via Docker Compose
+4. **Health Check** - Verifies services are accessible
+5. **API Tests** - Tests registration and authentication endpoints
+6. **Robot Framework Tests** - Runs UI tests in headless browser
+7. **Cleanup** - Stops containers after tests complete
 
 ## Prerequisites
 
-1. **Docker installed** (Docker Desktop for Mac/Windows, or Docker Engine for Linux)
-2. **Git repository** with your code (or use local filesystem)
-3. **Required Jenkins plugins** (will be prompted during setup):
-   - Docker Pipeline
-   - HTML Publisher Plugin (optional)
-4. **System requirements:**
-   - Docker and Docker Compose installed
-   - Jenkins runs in Docker container (port 8081)
+- **Docker** installed and running
+- **Git** for source control
+- **8081 port available** for Jenkins
 
-## Jenkins Setup
+## Setup Script Features
 
-### 1. Install Required Plugins
+The `jenkins-local-setup.sh` script:
 
-1. Go to **Manage Jenkins** → **Plugins** → **Available**
-2. Search and install:
-   - `Docker Pipeline` (for Docker support)
-   - `HTML Publisher Plugin` (optional, for HTML reports)
-   - `Docker Compose Build Step` (optional)
+| Feature | macOS | Linux |
+|---------|-------|-------|
+| Docker volume for persistence | ✅ | ✅ |
+| Docker CLI inside Jenkins | ✅ | ✅ |
+| Docker Compose plugin | ✅ | ✅ |
+| Socket permissions | Auto | Auto |
+| OS auto-detection | ✅ | ✅ |
 
-### 2. Quick Setup with Script
+## Required Jenkins Plugins
 
-The easiest way to set up Jenkins:
+After first login, install these plugins:
 
-```bash
-# Run the setup script
-./jenkins-local-setup.sh
-```
+1. **Robot Framework Plugin** - For test result publishing
+2. **Docker Pipeline** - For Docker support
+3. **HTML Publisher Plugin** - For reports (optional)
 
-This script will:
-- Start Jenkins on port **8081** (to avoid conflicts with frontend on 8080)
-- Install Docker CLI and docker-compose plugin inside Jenkins
-- Configure Docker socket access
-- Display the admin password
+Go to: **Manage Jenkins** → **Plugins** → **Available plugins**
 
-Access Jenkins at: `http://localhost:8081`
-
-### 3. Manual Docker Setup (Alternative)
-
-If you prefer manual setup:
-
-```bash
-# Start Jenkins container
-docker run -d \
-  --name jenkins \
-  -p 8081:8080 \
-  -p 50000:50000 \
-  -v $(pwd)/jenkins-data:/var/jenkins_home \
-  -v /var/run/docker.sock:/var/run/docker.sock \
-  jenkins/jenkins:lts
-
-# Get admin password
-docker exec jenkins cat /var/jenkins_home/secrets/initialAdminPassword
-```
-
-### 4. Create a Jenkins Pipeline Job
+## Creating the Pipeline Job
 
 1. Open Jenkins: `http://localhost:8081`
-2. Enter the admin password (shown by setup script)
-3. Complete the setup wizard (install suggested plugins)
-4. **New Item** → Select **Pipeline**
-5. Configure the pipeline:
-   - **Pipeline definition**: Pipeline script from SCM
-   - **SCM**: Git (or your version control)
-   - **Repository URL**: Your repository URL (e.g., `https://github.com/yourusername/training-app.git`)
-   - **Branch Specifier**: `*/main` or `*/Master` (not `*/master`)
-   - **Credentials**: If private repo
-   - **Script Path**: `Jenkinsfile`
-6. Click **Save**
+2. Click **New Item**
+3. Enter name (e.g., `training-app`)
+4. Select **Pipeline**
+5. Click **OK**
 
-### 5. Alternative: Manual Pipeline Configuration
+### Configure Pipeline
 
-If you prefer to configure manually:
+In **Pipeline** section:
+- **Definition**: Pipeline script from SCM
+- **SCM**: Git
+- **Repository URL**: Your repo URL
+- **Branch**: `*/main` or `*/Master`
+- **Script Path**: `Jenkinsfile`
 
-1. **New Item** → **Pipeline**
-2. In **Pipeline** section:
-   - Definition: **Pipeline script**
-   - Copy the contents of `Jenkinsfile` into the script box
+Click **Save**, then **Build Now**.
 
-## Pipeline Stages
+## Pipeline Stages Detail
 
-The Jenkins pipeline includes:
+### Health Check
+```groovy
+// Waits for frontend and backend to be ready
+// Uses Docker gateway IP (172.17.0.1) for container-to-host communication
+// Tests via Nginx proxy at port 8080
+```
 
-1. **Checkout**: Gets source code from repository
-2. **Build Docker Images**: Builds backend and frontend containers with docker-compose
-3. **Start Services**: Starts all services (db, backend, frontend) with docker-compose
-4. **Health Check**: Verifies services are running and accessible
-   - Detects host automatically (uses `host.docker.internal` for Docker Desktop)
-   - Checks backend at port 8000
-   - Checks frontend at port 8080
-5. **API Tests**: Tests API endpoints (registration, login, logout, JWT, Basic Auth)
-6. **Post Actions**: Services remain running after build completion
+### API Tests
+```groovy
+// Tests user registration at /api/register
+// Tests /me endpoint with JWT token
+// Uses Nginx proxy paths
+```
 
-**Note**: Services are not automatically stopped after the build. They remain running for further testing or debugging.
+### Robot Framework Tests
+```groovy
+// Runs in marketsquare/robotframework-browser container
+// Executes tests from robot-tests/test/
+// Publishes results via Robot Framework plugin
+// Captures screenshots on failure
+```
 
 ## Test Results
 
-After each run:
-- **Console Output**: Detailed logs of all pipeline stages
-- **Build Status**: Success ✅, Failure ❌, or Unstable ⚠️
-- **Services**: Remain running after build for manual testing
+After each build:
 
-## Accessing Running Services
+| Location | Content |
+|----------|---------|
+| **Robot Results** | Test pass/fail with trends |
+| **Console Output** | Full execution log |
+| **robot-results/** | log.html, report.html, screenshots |
 
-After a successful build, services are accessible at:
-- **Backend API**: `http://localhost:8000`
-- **Frontend**: `http://localhost:8080`
-- **Swagger UI**: `http://localhost:8000/api-docs`
+## Environment Variables
 
-To stop services manually:
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `COMPOSE_PROJECT_NAME` | `training-app` | Docker Compose project name |
+| `HEADLESS` | `true` | Run browser headless in CI |
+| `FRONTEND_URL` | `http://localhost:8080` | App URL for tests |
+
+## Troubleshooting
+
+### Docker Permission Denied
+```bash
+# The setup script handles this, but if needed:
+docker exec -u root jenkins chmod 666 /var/run/docker.sock
+```
+
+### Tests Can't Connect to App
+- Check services are running: `docker compose ps`
+- Verify health check passed in console output
+- Ensure port 8080 is not in use by another service
+
+### Robot Framework Plugin Missing
+Results will be archived as artifacts instead. Install the plugin for better visualization.
+
+### Container Network Issues
+The pipeline uses `--network host` for the RF test container, allowing direct `localhost` access to the app.
+
+### Workspace Path Issues
+The pipeline dynamically detects the Jenkins workspace path using `$JOB_NAME`. If you rename the job, the path updates automatically.
+
+## Manual Operations
+
+### Trigger Build
+```bash
+# Via Jenkins CLI
+java -jar jenkins-cli.jar -s http://localhost:8081 build training-app
+
+# Or click "Build Now" in web UI
+```
+
+### View Logs
+```bash
+# Docker Compose logs
+docker compose logs -f
+
+# Jenkins container logs
+docker logs jenkins
+```
+
+### Stop Services After Build
+The pipeline stops containers in the cleanup phase. To manually stop:
 ```bash
 docker compose down
 ```
 
-## Manual Jenkins Execution
+## Pipeline Configuration
 
-### Using Jenkins CLI
-
-```bash
-# Download Jenkins CLI (if needed)
-wget http://localhost:8081/jnlpJars/jenkins-cli.jar
-
-# Trigger a build
-java -jar jenkins-cli.jar -s http://localhost:8081 build training-app-pipeline
-
-# Get build status
-java -jar jenkins-cli.jar -s http://localhost:8081 get-build training-app-pipeline 1
-```
-
-### Using Jenkins Web UI
-
-1. Navigate to your pipeline job
-2. Click **Build Now**
-3. View progress in **Console Output**
-4. Check **Test Results** after completion
-
-## Environment Variables
-
-You can customize the pipeline by setting environment variables:
-
-- `COMPOSE_PROJECT_NAME`: Docker Compose project name (default: `training-app`)
-- `HEADLESS`: Set to `true` for headless browser tests (default: `false`)
-
-To set in Jenkins:
-1. Go to **Pipeline** configuration
-2. Add environment variables in **Pipeline** section → **Environment variables**
-
-## Troubleshooting
-
-### Docker Permission Issues
-
-```bash
-# Ensure Jenkins user can run Docker
-sudo usermod -aG docker jenkins
-sudo chmod 666 /var/run/docker.sock
-sudo systemctl restart jenkins
-```
-
-### Port Conflicts
-
-- **Jenkins runs on port 8081** (to avoid conflict with frontend on 8080)
-- If ports 8000 or 8080 are already in use:
-  - Modify `docker-compose.yml` to use different ports
-  - Update health check URLs in `Jenkinsfile`
-
-### Host Connectivity Issues
-
-If health checks fail with "Could not connect":
-- Jenkins automatically detects host using `host.docker.internal` (Docker Desktop)
-- For Linux, it detects the Docker gateway IP
-- Check that services are actually running: `docker compose ps`
-
-### Docker Compose Not Found
-
-If you see "docker compose not found" errors:
-- The setup script automatically installs docker-compose plugin
-- If manual setup, install inside Jenkins container:
-  ```bash
-  docker exec -u root jenkins sh -c "apt-get update && apt-get install -y docker-compose-plugin"
-  ```
-
-### Test Failures
-
-1. Check **Console Output** for detailed errors
-2. Verify services are running: `docker compose ps`
-3. Check service logs: `docker compose logs backend`
-4. Test API manually: `curl http://localhost:8000/api-docs`
-5. Check host detection: Look for "Using host: ..." in console output
-
-## Webhooks (GitHub/GitLab Integration)
-
-Set up automatic builds on push:
-
-1. **Pipeline** → **Build Triggers** → **GitHub hook trigger for GITScm polling**
-2. Configure webhook in your Git repository:
-   - URL: `http://your-jenkins-url:8081/github-webhook/`
-   - Content type: `application/json`
-   - Events: Push events
-
-## Advanced Configuration
-
-### Parallel Test Execution
-
-Modify `Jenkinsfile` to run tests in parallel:
-
+### Modify Test Thresholds
+In Jenkinsfile:
 ```groovy
-stage('Run Tests') {
-    parallel {
-        stage('Health Check') {
-            steps { /* Health check tests */ }
-        }
-        stage('API Tests') {
-            steps { /* API tests */ }
-        }
-    }
-}
+robot(
+    passThreshold: 100.0,    // Pipeline fails below this
+    unstableThreshold: 80.0  // Pipeline unstable below this
+)
 ```
 
-### Deployment Stage
-
-Add deployment after successful tests:
-
+### Add Deployment Stage
 ```groovy
 stage('Deploy') {
-    when {
-        branch 'main'
-    }
+    when { branch 'main' }
     steps {
-        sh '''
-            # Your deployment commands here
-            docker compose -f docker-compose.prod.yml up -d
-        '''
+        sh 'docker compose -f docker-compose.prod.yml up -d'
     }
 }
 ```
 
-## Example Jenkinsfile Usage
+### Parallel Tests
+```groovy
+stage('Tests') {
+    parallel {
+        stage('API Tests') { steps { /* ... */ } }
+        stage('UI Tests') { steps { /* ... */ } }
+    }
+}
+```
 
-The included `Jenkinsfile` is a complete CI/CD pipeline that:
-- ✅ Builds Docker images with docker-compose
-- ✅ Starts all services (db, backend, frontend)
-- ✅ Runs health checks (auto-detects host connectivity)
-- ✅ Tests API endpoints (registration, login, JWT, Basic Auth)
-- ✅ Keeps services running after build for testing
-- ✅ Supports both docker-compose and docker compose commands
+## Webhook Integration
 
-## Key Features
+For automatic builds on push:
 
-- **Automatic host detection**: Uses `host.docker.internal` for Docker Desktop or detects gateway IP
-- **Docker Compose compatibility**: Works with both `docker-compose` and `docker compose`
-- **Services persist**: Services remain running after build for manual testing
-- **Comprehensive API tests**: Tests registration, login, logout, JWT auth, and Basic Auth
+1. In Jenkins job: **Build Triggers** → **GitHub hook trigger**
+2. In GitHub: **Settings** → **Webhooks** → Add webhook
+   - URL: `http://your-jenkins:8081/github-webhook/`
+   - Content type: `application/json`
+   - Events: Push
 
 ## Stopping Jenkins
 
 ```bash
-# Stop Jenkins
+# Stop (keeps data)
 docker stop jenkins
 
-# Stop and remove Jenkins (keeps data)
+# Stop and remove (keeps volume)
 docker stop jenkins && docker rm jenkins
 
-# Remove Jenkins and all data (fresh start)
-docker stop jenkins && docker rm jenkins && rm -rf jenkins-data
+# Full cleanup (removes data)
+docker stop jenkins && docker rm jenkins && docker volume rm jenkins_home
 ```
+
+## File Locations
+
+| Path | Description |
+|------|-------------|
+| `Jenkinsfile` | Pipeline definition |
+| `jenkins-local-setup.sh` | Setup script |
+| `robot-results/` | Test output (created by pipeline) |
+| `jenkins_home` volume | Jenkins persistent data |
 
 ## Support
 
-For issues or questions:
-1. Check Jenkins console logs in web UI
-2. Review Docker Compose logs: `docker compose logs`
-3. Verify services are running: `docker compose ps`
-4. Check host connectivity: Look for "Using host: ..." in console
-5. Verify docker-compose is installed in Jenkins container
-
-## Troubleshooting Quick Reference
-
-| Issue | Solution |
-|-------|----------|
-| "docker compose not found" | Run `./jenkins-local-setup.sh` or install docker-compose-plugin in container |
-| "Could not connect" | Check host detection in console output, verify services are running |
-| "Port already in use" | Jenkins uses 8081, frontend uses 8080, backend uses 8000 |
-| "Branch not found" | Set branch specifier to `*/main` or `*/Master`, not `*/master` |
-| Services not accessible | Check docker compose ps, verify ports are exposed |
-
+1. Check **Console Output** in Jenkins for errors
+2. Review `docker compose logs` for service issues
+3. Verify `docker compose ps` shows all services running
+4. Check Robot Framework `log.html` for test details
