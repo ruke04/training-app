@@ -35,6 +35,7 @@ if [[ "$OSTYPE" == "darwin"* ]]; then
       -p 50000:50000 \
       -v jenkins_home:/var/jenkins_home \
       -v /var/run/docker.sock:/var/run/docker.sock \
+      -v $HOME/.aws:/var/jenkins_home/.aws:ro \
       -e JAVA_OPTS="-Dhudson.model.DirectoryBrowserSupport.CSP=" \
       jenkins/jenkins:lts
 else
