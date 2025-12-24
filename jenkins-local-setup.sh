@@ -51,6 +51,7 @@ else
       -p 50000:50000 \
       -v jenkins_home:/var/jenkins_home \
       -v /var/run/docker.sock:/var/run/docker.sock \
+      -v $HOME/.aws:/var/jenkins_home/.aws:ro \
       --group-add "$DOCKER_GID" \
       -e JAVA_OPTS="-Dhudson.model.DirectoryBrowserSupport.CSP=" \
       jenkins/jenkins:lts
@@ -60,16 +61,20 @@ fi
 echo "⏳ Waiting for Jenkins to initialize..."
 sleep 10
 
-# Install Docker CLI + Compose plugin inside Jenkins
-echo "🔧 Installing Docker CLI inside Jenkins container..."
+# Install Docker CLI + AWS CLI inside Jenkins
+echo "🔧 Installing Docker CLI and AWS CLI inside Jenkins container..."
 docker exec -u root jenkins bash -c "
     apt-get update && \
-    apt-get install -y ca-certificates curl gnupg lsb-release && \
+    apt-get install -y ca-certificates curl gnupg lsb-release unzip && \
     curl -fsSL https://download.docker.com/linux/debian/gpg | gpg --dearmor -o /usr/share/keyrings/docker.gpg && \
     echo \"deb [arch=\$(dpkg --print-architecture) signed-by=/usr/share/keyrings/docker.gpg] https://download.docker.com/linux/debian \$(lsb_release -cs) stable\" > /etc/apt/sources.list.d/docker.list && \
     apt-get update && \
     apt-get install -y docker-ce-cli docker-compose-plugin && \
-    ln -sf /usr/libexec/docker/cli-plugins/docker-compose /usr/local/bin/docker-compose
+    ln -sf /usr/libexec/docker/cli-plugins/docker-compose /usr/local/bin/docker-compose && \
+    curl 'https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip' -o 'awscliv2.zip' && \
+    unzip awscliv2.zip && \
+    ./aws/install && \
+    rm -rf aws awscliv2.zip
 "
 
 # Fix Docker socket permissions inside container (needed for both OS)
@@ -84,6 +89,15 @@ for i in {1..40}; do
     echo "   ...waiting ($i/40)"
     sleep 5
 done
+
+# Verify AWS credentials mount
+echo "🔐 Verifying AWS credentials..."
+if docker exec jenkins ls /var/jenkins_home/.aws/credentials >/dev/null 2>&1; then
+    echo "✅ AWS credentials mounted successfully"
+    docker exec jenkins aws sts get-caller-identity 2>/dev/null && echo "✅ AWS authentication working" || echo "⚠️  AWS credentials found but authentication failed"
+else
+    echo "⚠️  AWS credentials not found. Mount ~/.aws or run 'aws configure' on host"
+fi
 
 # Print admin password
 echo ""
