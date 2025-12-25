@@ -35,7 +35,7 @@ if [[ "$OSTYPE" == "darwin"* ]]; then
       -p 50000:50000 \
       -v jenkins_home:/var/jenkins_home \
       -v /var/run/docker.sock:/var/run/docker.sock \
-      -v $HOME/.aws:/var/jenkins_home/.aws:ro \
+      -v $HOME/.aws:/var/jenkins_home/.aws \
       -e JAVA_OPTS="-Dhudson.model.DirectoryBrowserSupport.CSP=" \
       jenkins/jenkins:lts
 else
@@ -51,7 +51,7 @@ else
       -p 50000:50000 \
       -v jenkins_home:/var/jenkins_home \
       -v /var/run/docker.sock:/var/run/docker.sock \
-      -v $HOME/.aws:/var/jenkins_home/.aws:ro \
+      -v $HOME/.aws:/var/jenkins_home/.aws \
       --group-add "$DOCKER_GID" \
       -e JAVA_OPTS="-Dhudson.model.DirectoryBrowserSupport.CSP=" \
       jenkins/jenkins:lts
@@ -81,6 +81,13 @@ docker exec -u root jenkins bash -c "
 echo "🔧 Fixing Docker socket permissions..."
 docker exec -u root jenkins chmod 666 /var/run/docker.sock 2>/dev/null || true
 
+# Fix AWS directory permissions (allow Jenkins user to write cache)
+echo "🔧 Fixing AWS directory permissions..."
+docker exec -u root jenkins bash -c "
+    chown -R jenkins:jenkins /var/jenkins_home/.aws 2>/dev/null || true
+    chmod -R u+rw /var/jenkins_home/.aws 2>/dev/null || true
+"
+
 echo "⏳ Waiting for Jenkins password file..."
 for i in {1..40}; do
     if docker exec jenkins test -f /var/jenkins_home/secrets/initialAdminPassword 2>/dev/null; then
@@ -92,11 +99,13 @@ done
 
 # Verify AWS credentials mount
 echo "🔐 Verifying AWS credentials..."
-if docker exec jenkins ls /var/jenkins_home/.aws/credentials >/dev/null 2>&1; then
-    echo "✅ AWS credentials mounted successfully"
-    docker exec jenkins aws sts get-caller-identity 2>/dev/null && echo "✅ AWS authentication working" || echo "⚠️  AWS credentials found but authentication failed"
+if docker exec jenkins ls /var/jenkins_home/.aws/config >/dev/null 2>&1; then
+    echo "✅ AWS config mounted successfully"
+    # List available profiles
+    echo "📋 Available AWS profiles:"
+    docker exec jenkins aws configure list-profiles 2>/dev/null || echo "   (none found)"
 else
-    echo "⚠️  AWS credentials not found. Mount ~/.aws or run 'aws configure' on host"
+    echo "⚠️  AWS config not found. Ensure ~/.aws exists on host"
 fi
 
 # Print admin password
