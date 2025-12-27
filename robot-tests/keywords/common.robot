@@ -51,6 +51,7 @@ Click Login Button
     Click  ${LOGIN_BUTTON}
 
 Click Logout Button
+    Wait For Element To Be Visible   ${LOGOUT_BUTTON}  timeout=10s
     Click  ${LOGOUT_BUTTON}
 
 Click Show all user Button
