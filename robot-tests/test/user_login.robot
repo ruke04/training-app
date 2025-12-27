@@ -8,6 +8,7 @@ Suite Teardown   Close browser
 
 Verify successful user login
     [Documentation]   verify the User is able to log in succesfully
+    Run Keyword And Ignore Error  Register New User    Bibi    12345
     Enter Login Username     Bibi  
     Enter Login Password     12345
     Click Login Button      
@@ -15,6 +16,7 @@ Verify successful user login
 
 Verify unsuccessful user login with an invalid password
     [Documentation]  verify the user is unable to log in with an invalid password
+    Run Keyword And Ignore Error  Register New User    Efe    12345
     Enter Login Username            Efe
     Enter Login Password            Invalidpass1
     Click Login Button      

@@ -8,6 +8,7 @@ Suite Teardown    Close Browser
 
 View Profile While Logged In
   [Documentation]  verify the User is able to log in succesful
+  Run Keyword And Ignore Error  Register New User    ruke    12345
   Enter Login Username    ruke
   Enter Login Password    12345
   Click Login Button
