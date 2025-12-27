@@ -1,5 +1,5 @@
 *** Settings ***
-Documentation    This test case is used to test the profile managet functionality
+Documentation    This test case is used to test the profile management functionality
 Resource         ../keywords/common.robot
 Suite Setup       Launch Training App
 Suite Teardown    Close Browser
@@ -13,8 +13,12 @@ View Profile While Logged In
   Click Login Button
   Wait For Elements State  text=Login successful  visible  timeout=10s
   Click Refresh Profile Button
+<<<<<<< HEAD
+
+=======
   Get Text  //*[@id="profile_display"]  ==  👤 ruke\nLogged in
 
+>>>>>>> 5c560a45c358b886dd9063b32a52c2c65e84d422
 View Profile While Logged Out
   [Documentation]  verify the User is logout successful
   Click Logout Button
@@ -27,3 +31,10 @@ Profile Display Updates After Login
   Enter Login Password    12345
   Click Login Button   
   Wait For Elements State  text=Login successful  visible  timeout=10s
+<<<<<<< HEAD
+  Click Refresh Profile Button
+  Sleep    5s
+      
+=======
+
+>>>>>>> 5c560a45c358b886dd9063b32a52c2c65e84d422
