@@ -8,9 +8,14 @@ Suite Teardown    Close Browser
 
 Verify List Users While Logged In
     [Documentation]    Verify logged-in user can see users list
+<<<<<<< HEAD
     Run Keyword And Ignore Error  Register New User    testuserw206    testpass1205
     Enter Login Username  testuserw206
     Enter Login Password  testpass1205
+=======
+    Enter Login Username  testuserww
+    Enter Login Password  testpass123
+>>>>>>> cc41d91 (Add robot test updates and Dockerfile)
     Click Login Button
     Wait For Elements State    text=Login successful    visible    timeout=10s
     Click Show all user Button
@@ -40,8 +45,18 @@ Verify List Users While Logged Out
 
 Verify Users List Shows Newly Registered User
     [Documentation]    Verify newly registered user appears in users list
+<<<<<<< HEAD
     Enter Login Username  testuserw206
     Enter Login Password  testpass1205
+=======
+    # The current tab is the users list
+    ${page_ids}=   Get Page Ids
+    ${users_tab}=  Set Variable    ${page_ids}[0]
+    Reload
+    Wait For Element To Be Visible   ${TRAINING_APP_TITLE}   timeout=10s
+    Enter Login Username  testuserww
+    Enter Login Password  testpass123
+>>>>>>> cc41d91 (Add robot test updates and Dockerfile)
     Click Login Button
     Wait For Elements State    text=Login successful    visible
     Click Show all user Button
@@ -57,7 +72,11 @@ Verify Users List Shows Newly Registered User
     Wait For Elements State  text=Registration successful! Please login to continue.  visible  timeout=2s
     # Check that New user list table has more rows 
     Click Show all user Button
+<<<<<<< HEAD
     Sleep    2s
+=======
+    Wait For Elements State    ${USERS_LIST}    visible
+>>>>>>> cc41d91 (Add robot test updates and Dockerfile)
     ${New_User_count}=    Get Element Count    ${TABLE_ROWS}
     Log    ${New_User_count}
     Should Be True    ${New_User_count} > ${user_count}
