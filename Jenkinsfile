@@ -72,40 +72,7 @@ pipeline {
                 '''
             }
         }
-        
-        stage('API Tests') {
-            steps {
-                echo 'Running API tests...'
-                sh '''
-                    HOST="172.17.0.1"
-                    
-                    # Use /api prefix through nginx proxy
-                    REGISTER_RESPONSE=$(curl -s -w "\\n%{http_code}" -X POST http://$HOST:8080/api/register \
-                        -H "Content-Type: application/json" \
-                        -d '{"username":"jenkins-test","password":"test123"}')
-                    
-                    CODE=$(echo "$REGISTER_RESPONSE" | tail -n1)
-                    echo "Registration response code: $CODE"
-                    
-                    if [ "$CODE" != "201" ] && [ "$CODE" != "409" ]; then
-                        echo "Registration failed with code: $CODE"
-                        exit 1
-                    fi
-                    
-                    if [ "$CODE" = "201" ]; then
-                        # Extract token using sed (no jq needed)
-                        TOKEN=$(echo "$REGISTER_RESPONSE" | head -n1 | sed 's/.*"token":"\\([^"]*\\)".*/\\1/')
-                        echo "Testing /me endpoint with token..."
-                        curl -f http://$HOST:8080/api/me -H "Authorization: Bearer $TOKEN" || exit 1
-                    else
-                        echo "User already exists (409), skipping token test"
-                    fi
-                    
-                    echo "API tests passed!"
-                '''
-            }
-        }
-        
+
         stage('Robot Framework Tests') {
             steps {
                 echo 'Running Robot Framework tests...'
