@@ -46,15 +46,7 @@ pipeline {
                     
                     echo "Using host: $HOST"
                     
-                    for i in 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26 27 28 29 30; do
-                        if curl -sf --connect-timeout 5 http://$HOST:8000/api-docs >/dev/null 2>&1; then
-                            echo "Backend is ready!"
-                            break
-                        fi
-                        echo "Waiting for backend on $HOST:8000... ($i/30)"
-                        sleep 2
-                    done
-                    
+                    # Wait for frontend (nginx) which proxies to backend
                     for i in 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26 27 28 29 30; do
                         if curl -sf --connect-timeout 5 http://$HOST:8080 >/dev/null 2>&1; then
                             echo "Frontend is ready!"
@@ -64,9 +56,19 @@ pipeline {
                         sleep 2
                     done
                     
+                    # Wait for API via nginx proxy
+                    for i in 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26 27 28 29 30; do
+                        if curl -sf --connect-timeout 5 http://$HOST:8080/api/api-docs >/dev/null 2>&1; then
+                            echo "Backend API is ready!"
+                            break
+                        fi
+                        echo "Waiting for backend API on $HOST:8080/api... ($i/30)"
+                        sleep 2
+                    done
+                    
                     echo "Testing final connectivity..."
-                    curl -i http://$HOST:8000/api-docs || exit 1
                     curl -i http://$HOST:8080 || exit 1
+                    curl -i http://$HOST:8080/api/api-docs || exit 1
                 '''
             }
         }
@@ -77,7 +79,8 @@ pipeline {
                 sh '''
                     HOST="172.17.0.1"
                     
-                    REGISTER_RESPONSE=$(curl -s -w "\\n%{http_code}" -X POST http://$HOST:8000/register \
+                    # Use /api prefix through nginx proxy
+                    REGISTER_RESPONSE=$(curl -s -w "\\n%{http_code}" -X POST http://$HOST:8080/api/register \
                         -H "Content-Type: application/json" \
                         -d '{"username":"jenkins-test","password":"test123"}')
                     
@@ -93,7 +96,7 @@ pipeline {
                         # Extract token using sed (no jq needed)
                         TOKEN=$(echo "$REGISTER_RESPONSE" | head -n1 | sed 's/.*"token":"\\([^"]*\\)".*/\\1/')
                         echo "Testing /me endpoint with token..."
-                        curl -f http://$HOST:8000/me -H "Authorization: Bearer $TOKEN" || exit 1
+                        curl -f http://$HOST:8080/api/me -H "Authorization: Bearer $TOKEN" || exit 1
                     else
                         echo "User already exists (409), skipping token test"
                     fi
@@ -109,8 +112,11 @@ pipeline {
                 sh '''
                     # Get the host path where jenkins-data is mounted by inspecting the Jenkins container
                     JENKINS_HOST_PATH=$(docker inspect jenkins --format '{{range .Mounts}}{{if eq .Destination "/var/jenkins_home"}}{{.Source}}{{end}}{{end}}')
-                    HOST_WORKSPACE="${JENKINS_HOST_PATH}/workspace/Training-app"
+                    # Use JOB_NAME from Jenkins (replace slashes with underscores for folder jobs)
+                    JOB_DIR=$(echo "$JOB_NAME" | tr '/' '_')
+                    HOST_WORKSPACE="${JENKINS_HOST_PATH}/workspace/${JOB_DIR}"
                     echo "Detected Host Workspace: $HOST_WORKSPACE"
+                    echo "Job Name: $JOB_NAME -> Directory: $JOB_DIR"
                     
                     # Create results directory
                     mkdir -p robot-results
@@ -118,7 +124,7 @@ pipeline {
                     # Remove old container if exists
                     docker rm -f rf-tests 2>/dev/null || true
                     
-                    # Run Robot Framework tests (container stays alive after tests)
+                    # Run Robot Framework tests container
                     docker run -d \
                         --name rf-tests \
                         --network host \
@@ -127,29 +133,25 @@ pipeline {
                         marketsquare/robotframework-browser:latest \
                         tail -f /dev/null
                     
-                    # Fix permissions and run tests inside the container
+                    # Fix permissions
                     docker exec --user root rf-tests bash -c "
                         mkdir -p /workspace/robot-results && \
                         chmod 777 /workspace/robot-results
                     "
                     
+                    # Run tests (exit code reflects test results)
                     docker exec rf-tests bash -c "
                         echo 'Initializing Browser library...' && \
                         rfbrowser init chromium && \
                         echo 'Running Robot Framework tests...' && \
                         robot \
-                            --nostatusrc \
                             --variable HEADLESS:true \
-                            --variable FRONTEND_URL:http://172.17.0.1:8080 \
+                            --variable FRONTEND_URL:http://localhost:8080 \
                             --outputdir /workspace/robot-results \
-                            --loglevel DEBUG \
-                            --variable BROWSER_SCREENSHOTS:/workspace/robot-results \
                             /workspace/robot-tests/test && \
                         echo 'Copying any browser screenshots...' && \
                         cp -r /workspace/robot-results/browser/screenshot/* /workspace/robot-results/ 2>/dev/null || true
                     "
-                    
-                    echo "RF container 'rf-tests' is still running. Access it with: docker exec -it rf-tests bash"
                 '''
             }
             post {
@@ -162,13 +164,12 @@ pipeline {
                                 outputFileName: 'output.xml',
                                 logFileName: 'log.html',
                                 reportFileName: 'report.html',
-                                passThreshold: 80.0,
-                                unstableThreshold: 60.0,
+                                passThreshold: 100.0,
+                                unstableThreshold: 80.0,
                                 otherFiles: '**/*.png,**/*.jpg,**/*.jpeg,browser/**/*'
                             )
                         } catch (Exception e) {
                             echo "Robot Framework plugin not installed or no results found: ${e.message}"
-                            // Archive as fallback
                             archiveArtifacts artifacts: 'robot-results/**/*', allowEmptyArchive: true
                         }
                     }
@@ -179,7 +180,16 @@ pipeline {
     
     post {
         always {
-            echo 'Pipeline completed. Services are still running.'
+            echo 'Cleaning up...'
+            sh '''
+                # Clean up RF test container
+                docker stop rf-tests 2>/dev/null || true
+
+                # Stop application containers (keep them for debugging)
+                docker compose stop 2>/dev/null || true
+                
+                echo 'Cleanup complete.'
+            '''
         }
         success { echo 'Pipeline succeeded! ✅' }
         failure { echo 'Pipeline failed! ❌' }

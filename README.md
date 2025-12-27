@@ -1,153 +1,199 @@
-# Training App for Robot Framework Bootcamp
+# Training App
 
-A minimal full‑stack app used to practice end‑to‑end UI automation with Robot Framework.
+A full-stack web application for practicing UI automation with Robot Framework.
 
-### What's included
-- **Backend**: FastAPI service with auth: `POST /register`, `POST /login`, `GET /me`, `POST /logout`, `GET /protected`
-- **Database**: Postgres (via Docker) with SQLAlchemy models
-- **Frontend**: Static HTML + JS (NGINX) with signup, login, and profile fetch
-- **Protected Site**: Authenticated static site accessible at `http://localhost:8000/protected`
-- **E2E Tests**: Robot Framework Browser covering register + login flow
-- **Containerization**: `docker-compose` spins up DB, backend, and frontend
+## Features
 
-## Project structure
+- **User Authentication**: Register, login, logout, password change
+- **User Management**: List users, delete users, delete own account
+- **Protected Site**: JWT-authenticated static site
+- **API**: RESTful endpoints with Swagger documentation
+- **CI/CD**: Jenkins pipeline with Robot Framework tests
+
+## Architecture
+
 ```
-backend/
-  Dockerfile
-  requirements.txt
-  src/app.py          # FastAPI app with /login endpoint
-  src/database.py     # SQLAlchemy engine/session
-  src/models.py       # User model
-  src/auth.py         # Password hashing + JWT helpers
-frontend/
-  Dockerfile          # NGINX serving static files
-  src/index.html
-  src/app.js          # fetch -> http://localhost:8000/login
-robot-tests/
-  tests/web_login_test.robot
-  resources/login_keywords.robot
-docker-compose.yml
+┌─────────────┐     ┌─────────────┐     ┌─────────────┐
+│   Frontend  │────▶│   Backend   │────▶│  PostgreSQL │
+│   (Nginx)   │     │  (FastAPI)  │     │     (DB)    │
+│   :8080     │     │    :8000    │     │    :5432    │
+└─────────────┘     └─────────────┘     └─────────────┘
+       │                   │
+       │    /api/* proxy   │
+       └───────────────────┘
 ```
 
-## Quick start (Docker)
-1) Build and start services
+## Quick Start
+
 ```bash
-docker compose up --build -d  (for mac)
-docker-compose up --build -d  (for linux)
+# Start all services
+docker compose up --build -d
+
+# Open the app
+open http://localhost:8080
+
+# Stop services
+docker compose down
 ```
-2) Open the app UI: `http://localhost:8080`
 
-3) Create an account, then login. The UI exposes both flows.
+## Project Structure
 
-4) After logging in, click "Open Protected Site" to access the protected content at `http://localhost:8000/protected`
+```
+training-app/
+├── backend/
+│   ├── src/
+│   │   ├── app.py          # FastAPI application
+│   │   ├── auth.py         # JWT & password hashing
+│   │   ├── database.py     # SQLAlchemy setup
+│   │   └── models.py       # User model
+│   ├── Dockerfile
+│   └── requirements.txt
+├── frontend/
+│   ├── src/
+│   │   ├── index.html      # Main app UI
+│   │   └── app.js          # Frontend logic
+│   ├── hidden-site/        # Protected static site
+│   ├── nginx.conf          # Nginx + API proxy config
+│   └── Dockerfile
+├── robot-tests/
+│   ├── test/               # Test suites
+│   ├── keywords/           # Shared keywords
+│   └── pageobject/         # Page locators
+├── docker-compose.yml
+├── Jenkinsfile             # CI/CD pipeline
+└── jenkins-local-setup.sh  # Jenkins setup script
+```
 
-5) Stop everything
+## URLs
+
+| Service | URL |
+|---------|-----|
+| Frontend | http://localhost:8080 |
+| Backend API | http://localhost:8080/api |
+| API Docs (Swagger) | http://localhost:8080/api/api-docs |
+| Protected Site | http://localhost:8000/protected |
+| Jenkins | http://localhost:8081 |
+
+## API Endpoints
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| POST | `/api/register` | Create new user |
+| POST | `/api/login` | Authenticate user |
+| POST | `/api/logout` | Clear auth cookie |
+| GET | `/api/me` | Get current user |
+| GET | `/api/users` | List all users |
+| DELETE | `/api/users/{username}` | Delete user |
+| DELETE | `/api/me` | Delete own account |
+| PUT | `/api/me/password` | Change password |
+
+See [API.md](API.md) for full documentation.
+
+## Running Tests
+
+### Using Make
 ```bash
-docker compose down - (for mac)
-docker-compose down - (for linux)
+make test
 ```
 
-## Local development (without Docker)
-Run backend (Python 3.11+):
+### Using Docker
+```bash
+docker run --rm --network host \
+  -v $(pwd):/workspace \
+  marketsquare/robotframework-browser:latest \
+  bash -c "rfbrowser init chromium && robot -d /workspace/robot-results /workspace/robot-tests/test"
+```
+
+### Local Execution
+```bash
+pip install robotframework robotframework-browser
+rfbrowser init
+robot -d robot-tests/test_results robot-tests/test
+```
+
+## Test Suites
+
+| Suite | Tests | Description |
+|-------|-------|-------------|
+| `user_registration.robot` | 2 | Registration flows |
+| `user_login.robot` | 5 | Login scenarios |
+| `Profile_management.robot` | 3 | Profile & logout |
+| `user_management.robot` | 3 | User listing |
+
+## Jenkins CI/CD
+
+```bash
+# Start Jenkins locally
+./jenkins-local-setup.sh
+
+# Access at http://localhost:8081
+```
+
+The pipeline:
+1. Builds Docker images
+2. Starts all services
+3. Runs health checks
+4. Executes API tests
+5. Runs Robot Framework UI tests
+6. Publishes test results
+
+See [JENKINS.md](JENKINS.md) for detailed setup.
+
+## Development
+
+### Backend Only
 ```bash
 cd backend
 pip install -r requirements.txt
-uvicorn src.app:app --host 0.0.0.0 --port 8000
+uvicorn src.app:app --reload --port 8000
 ```
 
-Serve frontend (any static server). Example using Python:
+### Frontend Only
 ```bash
 cd frontend/src
 python -m http.server 8080
 ```
-Open `http://localhost:8080` and use the same credentials above.
 
-Note: Because the frontend (8080) calls the backend (8000), CORS is enabled and defaults to `http://localhost:8080` when running via compose.
+## Environment Variables
 
-## API Reference
-`POST /register`
-- Body: `{ "username": string, "password": string }`
-- 201 Created: `{ "token": string }` and creates the user
-- 409 Conflict if username already exists
-
-`POST /login`
-- Body: `{ "username": string, "password": string }`
-- 200 OK: `{ "token": string }` when credentials are valid
-- 401 Unauthorized otherwise
-
-`GET /me`
-- Header: `Authorization: Bearer <token>`
-- 200 OK: `{ "username": string }`
-- 401 Unauthorized if missing/invalid
-
-`POST /logout`
-- Clears the `auth_token` cookie to log out the user
-- Does not require authentication
-- 200 OK: `{ "message": "Logged out successfully" }` (or HTML page)
-- Also available as `GET /logout` for iframe-based logout
-
-`GET /protected`
-- Serves protected static site (requires authentication)
-- Auth: `Authorization: Bearer <token>` header, or `?token=<token>` query parameter, or `auth_token` cookie
-- 200 OK: Returns `index.html` from protected directory
-- 401 Unauthorized if missing/invalid token
-- 404 Not found if protected files are missing
-
-Examples:
-```bash
-# Login
-curl -i -X POST \
-  -H 'Content-Type: application/json' \
-  -d '{"username":"student","password":"12345"}' \
-  http://localhost:8000/login
-
-# Access protected site (replace TOKEN with actual token)
-curl -i "http://localhost:8000/protected?token=TOKEN"
-```
-
-## Running Robot Framework tests
-Install Robot Framework Browser library and browsers locally:
-```bash
-pip install robotframework-browser
-rfbrowser init
-```
-
-Start the app first (via Docker or locally), then run:
-```bash
-robot -d results robot-tests/tests
-```
-The included test `web_login_test.robot` registers a new user, logs in, and fetches profile using the UI.
-
-## Jenkins CI/CD
-
-This project includes a Jenkins pipeline for continuous integration and deployment.
-
-### Quick Start with Jenkins
-
-1. **Install required Jenkins plugins:**
-   - Robot Framework Plugin
-   - HTML Publisher Plugin
-   - Docker Pipeline
-
-2. **Create a new Pipeline job** in Jenkins:
-   - Point to your repository
-   - Use the included `Jenkinsfile`
-
-3. **Run the pipeline** - it will:
-   - Build Docker images
-   - Start services
-   - Run Robot Framework tests
-   - Test API endpoints
-   - Publish test results
-
-See [JENKINS.md](JENKINS.md) for detailed setup instructions and configuration options.
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `DATABASE_URL` | (see compose) | PostgreSQL connection |
+| `JWT_SECRET` | `dev-secret-change-me` | JWT signing key |
+| `CORS_ORIGIN` | `*` | Allowed origins |
+| `PROTECTED_DIR` | `/app/protected_site` | Protected files path |
 
 ## Troubleshooting
-- If the browser console shows CORS errors, set env var `CORS_ORIGIN=http://localhost:8080` for the backend.
-- Ensure ports aren't in use: backend `8000`, frontend `8080`.
-- If you get "Protected file not found" error, restart the backend container: `docker compose restart backend` or `docker compose up -d --force-recreate backend`.
-- After logout, if you can still access the protected site, clear your browser cookies or use a private/incognito window.
-- Rebuild containers after changes: `docker compose up --build -d`.
+
+### CORS Errors
+The Nginx proxy handles CORS by routing `/api/*` to the backend. Access the app via `http://localhost:8080`.
+
+### Port Already in Use
+```bash
+# Check what's using ports
+lsof -i :8080
+lsof -i :8000
+
+# Stop and restart
+docker compose down && docker compose up -d
+```
+
+### Protected Site Not Loading
+```bash
+docker compose restart backend
+```
+
+### Tests Failing
+1. Ensure app is running: `docker compose ps`
+2. Check logs: `docker compose logs`
+3. Verify URL: `curl http://localhost:8080`
+
+## Documentation
+
+- [API.md](API.md) - API reference
+- [JENKINS.md](JENKINS.md) - CI/CD setup
+- [robot-tests/README-RF.md](robot-tests/README-RF.md) - Test automation guide
 
 ## License
-For educational use during the Robot Framework bootcamp.
+
+For educational use.

@@ -10,11 +10,8 @@ ${LOGIN_BUTTON}                 //button[text()="Login"]
 ${LOGOUT_BUTTON}                //button[text()='Logout']
 ${APP_URL}                  http://localhost:8080/
 ${NOTIFICATION_MESSAGE}     xpath=//*[@id="notification"]
-${TABLE_ROWS}                  css=table tbody tr:has(td)
-${LAST_ROW}                 css=#users_list tr:last-child
-${USERS_LIST}               css=#users_list > div:first-of-type 
+${TABLE_ROWS}                 //tbody/tr[position() > 1]
+${LAST_ROW}                 //tbody/tr[last()]
+${USERS_LIST}               //*[@id="users_list"]
 ${SHOW_ALL_USERS_BUTTON}      //button[text()="Show All Users"]
-
-
-
-
+${REFRESH_PROFILE_BUTTON}     //button[contains(text(),"Refresh Profile")]

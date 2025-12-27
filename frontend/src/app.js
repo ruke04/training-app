@@ -1,7 +1,19 @@
 
+// Use relative URL - nginx proxies /api/* to backend
+const API_URL = '/api'
+
 let token = null
 let currentUsername = null
 let pendingModalAction = null
+
+// Check for logout parameter from protected site
+if (window.location.search.includes('logout=true')) {
+    try {
+        localStorage.removeItem('token')
+    } catch (_) {}
+    // Clean up URL (remove query string)
+    window.history.replaceState({}, document.title, window.location.pathname)
+}
 
 try {
     const saved = localStorage.getItem('token')
@@ -47,6 +59,7 @@ function updateProfileDisplay(username) {
     const profileDisplay = document.getElementById('profile_display')
     const profileUsername = document.getElementById('profile_username')
     const profileStatus = document.getElementById('profile_status')
+    const changePasswordSection = document.getElementById('change_password_section')
     
     if (username) {
         currentUsername = username
@@ -54,19 +67,23 @@ function updateProfileDisplay(username) {
         profileStatus.textContent = 'Logged in'
         profileStatus.style.color = 'var(--accent-2)'
         profileDisplay.classList.add('show')
+        // Show change password section when logged in
+        if (changePasswordSection) changePasswordSection.style.display = 'block'
     } else {
         currentUsername = null
         profileUsername.textContent = '-'
         profileStatus.textContent = 'Not logged in'
         profileStatus.style.color = 'var(--muted)'
         profileDisplay.classList.remove('show')
+        // Hide change password section when logged out
+        if (changePasswordSection) changePasswordSection.style.display = 'none'
     }
 }
 
 async function register() {
     const username = document.getElementById('reg_username').value
     const password = document.getElementById('reg_password').value
-    const res = await fetch('http://localhost:8000/register', {
+    const res = await fetch(`${API_URL}/register`, {
         method: 'POST',
         headers: {'Content-Type': 'application/json'},
         body: JSON.stringify({username, password})
@@ -89,7 +106,7 @@ async function register() {
 async function login() {
     const username = document.getElementById('username').value
     const password = document.getElementById('password').value
-    const res = await fetch('http://localhost:8000/login', {
+    const res = await fetch(`${API_URL}/login`, {
         method: 'POST',
         headers: {'Content-Type': 'application/json'},
         body: JSON.stringify({username, password})
@@ -112,7 +129,7 @@ async function fetchMe() {
         document.getElementById('me').innerText = 'Not logged in'
         return
     }
-    const res = await fetch('http://localhost:8000/me', {
+    const res = await fetch(`${API_URL}/me`, {
         headers: { 'Authorization': `Bearer ${token}` }
     })
     if (res.ok) {
@@ -146,7 +163,7 @@ function openProtected() {
         showNotification('You are not logged in. Please login first.', 'error')
         return
     }
-    const url = `http://localhost:8000/protected?token=${encodeURIComponent(token)}`
+    const url = `${API_URL}/protected?token=${encodeURIComponent(token)}`
     window.location.href = url
 }
 
@@ -159,7 +176,7 @@ async function listUsers() {
     
     try {
         console.log('Fetching users with token:', token.substring(0, 20) + '...')
-        const res = await fetch('http://localhost:8000/users', {
+        const res = await fetch(`${API_URL}/users`, {
             method: 'GET',
             headers: { 
                 'Authorization': `Bearer ${token}`,
@@ -231,7 +248,7 @@ async function performDeleteUser(username) {
     
     try {
         console.log('Deleting user:', username)
-        const res = await fetch(`http://localhost:8000/users/${encodeURIComponent(username)}`, {
+        const res = await fetch(`${API_URL}/users/${encodeURIComponent(username)}`, {
             method: 'DELETE',
             headers: { 
                 'Authorization': `Bearer ${token}`,
@@ -288,7 +305,7 @@ async function performDeleteAccount() {
     
     try {
         console.log('Deleting my account')
-        const res = await fetch('http://localhost:8000/me', {
+        const res = await fetch(`${API_URL}/me`, {
             method: 'DELETE',
             headers: { 
                 'Authorization': `Bearer ${token}`,
@@ -315,7 +332,7 @@ async function performDeleteAccount() {
             iframe.style.display = 'none'
             iframe.style.width = '0'
             iframe.style.height = '0'
-            iframe.src = 'http://localhost:8000/logout'
+            iframe.src = `${API_URL}/logout`
             document.body.appendChild(iframe)
             setTimeout(() => {
                 if (iframe.parentNode) {
@@ -339,13 +356,19 @@ function logout() {
     try {
         localStorage.removeItem('token')
     } catch (_) {}
+    // Update profile display to show "Not logged in"
+    updateProfileDisplay(null)
+    // Clear any previous results
+    document.getElementById('me').innerText = ''
+    document.getElementById('result').innerText = ''
+    
     // Clear the auth_token cookie by loading logout endpoint in hidden iframe
     // This ensures the cookie is cleared in the browser's context for localhost:8000
     const iframe = document.createElement('iframe')
     iframe.style.display = 'none'
     iframe.style.width = '0'
     iframe.style.height = '0'
-    iframe.src = 'http://localhost:8000/logout'
+    iframe.src = `${API_URL}/logout`
     document.body.appendChild(iframe)
     
     // Remove iframe after it loads
@@ -360,6 +383,68 @@ function logout() {
     showNotification('Logged out successfully', 'success')
 }
 
+async function changePassword() {
+    if (!token) {
+        showNotification('You must be logged in to change password.', 'error')
+        return
+    }
+    
+    const currentPassword = document.getElementById('current_password').value
+    const newPassword = document.getElementById('new_password').value
+    const confirmNewPassword = document.getElementById('confirm_new_password').value
+    const resultEl = document.getElementById('change_password_result')
+    
+    // Validation
+    if (!currentPassword || !newPassword || !confirmNewPassword) {
+        resultEl.innerText = 'Please fill in all fields'
+        resultEl.style.color = 'var(--danger)'
+        return
+    }
+    
+    if (newPassword.length < 5) {
+        resultEl.innerText = 'New password must be at least 5 characters'
+        resultEl.style.color = 'var(--danger)'
+        return
+    }
+    
+    if (newPassword !== confirmNewPassword) {
+        resultEl.innerText = 'New passwords do not match'
+        resultEl.style.color = 'var(--danger)'
+        return
+    }
+    
+    try {
+        const res = await fetch(`${API_URL}/me/password`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify({
+                current_password: currentPassword,
+                new_password: newPassword
+            })
+        })
+        
+        if (res.ok) {
+            resultEl.innerText = 'Password changed successfully!'
+            resultEl.style.color = 'var(--accent-2)'
+            // Clear the form
+            document.getElementById('current_password').value = ''
+            document.getElementById('new_password').value = ''
+            document.getElementById('confirm_new_password').value = ''
+            showNotification('Password changed successfully!', 'success')
+        } else {
+            const err = await res.json().catch(() => ({}))
+            resultEl.innerText = err.detail || 'Failed to change password'
+            resultEl.style.color = 'var(--danger)'
+        }
+    } catch (error) {
+        resultEl.innerText = 'Error: ' + error.message
+        resultEl.style.color = 'var(--danger)'
+    }
+}
+
 // Expose for inline onclick handlers
 window.register = register
 window.login = login
@@ -371,3 +456,4 @@ window.listUsers = listUsers
 window.deleteUser = deleteUser
 window.closeModal = closeModal
 window.confirmModalAction = confirmModalAction
+window.changePassword = changePassword
