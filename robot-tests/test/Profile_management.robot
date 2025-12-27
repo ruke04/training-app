@@ -13,6 +13,7 @@ View Profile While Logged In
   Click Login Button
   Wait For Elements State  text=Login successful  visible  timeout=10s
   Click Refresh Profile Button
+  Get Text  //*[@id="profile_display"]  ==  👤 ruke\nLogged in
 
 View Profile While Logged Out
   [Documentation]  verify the User is logout successful
