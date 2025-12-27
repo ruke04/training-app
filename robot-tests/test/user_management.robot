@@ -8,6 +8,7 @@ Suite Teardown    Close Browser
 
 Verify List Users While Logged In
     [Documentation]    Verify logged-in user can see users list
+    Run Keyword And Ignore Error  Register New User    testuserw206    testpass1205
     Enter Login Username  testuserw206
     Enter Login Password  testpass1205
     Click Login Button

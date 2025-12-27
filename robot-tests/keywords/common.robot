@@ -61,3 +61,10 @@ Click Show all user Button
 Click Refresh Profile Button
     Wait For Element To Be Visible   ${REFRESH_PROFILE_BUTTON}  timeout=10s
     Click  ${REFRESH_PROFILE_BUTTON}
+
+Register New User
+    [Arguments]    ${username}    ${password}
+    Enter Username    ${username}
+    Enter Password    ${password}
+    Click Sign Up Button
+    Wait For Elements State  text=Registration successful! Please login to continue.  visible  timeout=2s
