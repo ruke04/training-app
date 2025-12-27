@@ -56,7 +56,7 @@ Verify Users List Shows Newly Registered User
     Wait For Elements State  text=Registration successful! Please login to continue.  visible  timeout=2s
     # Check that New user list table has more rows 
     Click Show all user Button
-    Sleep    1s
+    Sleep    2s
     ${New_User_count}=    Get Element Count    ${TABLE_ROWS}
     Log    ${New_User_count}
     Should Be True    ${New_User_count} > ${user_count}
