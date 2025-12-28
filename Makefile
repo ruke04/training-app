@@ -1,4 +1,4 @@
-.PHONY: help build up down restart logs test clean db-shell db-users db-delete-users rebuild status backend-logs frontend-logs db-logs api-docs
+.PHONY: help build up down restart logs test clean db-shell db-users db-delete-users db-delete-all-users rebuild status backend-logs frontend-logs db-logs api-docs
 
 # Default target
 help:
@@ -17,6 +17,7 @@ help:
 	@echo "  make db-shell     - Open PostgreSQL shell"
 	@echo "  make db-users     - List all users in database"
 	@echo "  make db-delete-users USERNAME=username - Delete a specific user"
+	@echo "  make db-delete-all-users - Delete ALL users from database"
 	@echo "  make api-docs     - Open Swagger UI in browser"
 	@echo "  make clean        - Stop services and remove volumes"
 
@@ -82,6 +83,11 @@ db-delete-users:
 	fi
 	docker compose exec db psql -U app -d training -c "DELETE FROM users WHERE username = '$(USERNAME)';"
 	@echo "User '$(USERNAME)' deleted (if it existed)."
+
+# Delete ALL users from database
+db-delete-all-users:
+	docker compose exec -T db psql -U app -d training -c "DELETE FROM users;"
+	@echo "All users deleted from database."
 
 # Open API documentation in browser
 api-docs:

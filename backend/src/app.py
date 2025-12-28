@@ -27,8 +27,8 @@ app = FastAPI(
         "- Basic Auth: Use username and password directly with Authorization: Basic <base64(username:password)>"
     ),
     version="1.0.0",
-    docs_url="/api-docs",
-    redoc_url="/redoc",
+    docs_url=None,  # Disable built-in docs, use custom routes below
+    redoc_url=None,  # Disable built-in redoc, use custom routes below
 )
 
 # Security schemes
@@ -77,13 +77,50 @@ def on_startup() -> None:
 
 # Public API docs endpoints (avoid auth)
 @app.get("/api-docs", include_in_schema=False)
-def swagger_ui() -> FileResponse:
-    return get_swagger_ui_html(openapi_url="/openapi.json", title=app.title)
+def swagger_ui():
+    # Custom Swagger UI with relative openapi.json path for proxy compatibility
+    html = f"""
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <link type="text/css" rel="stylesheet" href="https://cdn.jsdelivr.net/npm/swagger-ui-dist@5/swagger-ui.css">
+        <title>{app.title} - Swagger UI</title>
+    </head>
+    <body>
+        <div id="swagger-ui"></div>
+        <script src="https://cdn.jsdelivr.net/npm/swagger-ui-dist@5/swagger-ui-bundle.js"></script>
+        <script>
+        SwaggerUIBundle({{
+            url: 'openapi.json',
+            dom_id: '#swagger-ui',
+            presets: [SwaggerUIBundle.presets.apis, SwaggerUIBundle.SwaggerUIStandalonePreset],
+            layout: 'BaseLayout'
+        }});
+        </script>
+    </body>
+    </html>
+    """
+    return Response(content=html, media_type="text/html")
 
 
 @app.get("/redoc", include_in_schema=False)
-def redoc_ui() -> FileResponse:
-    return get_redoc_html(openapi_url="/openapi.json", title=app.title)
+def redoc_ui():
+    # Custom ReDoc with relative openapi.json path for proxy compatibility
+    html = f"""
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <title>{app.title} - ReDoc</title>
+        <link href="https://fonts.googleapis.com/css?family=Montserrat:300,400,700|Roboto:300,400,700" rel="stylesheet">
+        <style>body {{ margin: 0; padding: 0; }}</style>
+    </head>
+    <body>
+        <redoc spec-url='openapi.json'></redoc>
+        <script src="https://cdn.redoc.ly/redoc/latest/bundles/redoc.standalone.js"></script>
+    </body>
+    </html>
+    """
+    return Response(content=html, media_type="text/html")
 
 
 @app.get("/openapi.json", include_in_schema=False)
@@ -495,6 +532,11 @@ def custom_openapi():
         description=app.description,
         routes=app.routes,
     )
+    # Add servers for correct URL resolution (relative path works with both proxy and direct access)
+    openapi_schema["servers"] = [
+        {"url": "./", "description": "Current server (relative)"},
+        {"url": "http://localhost:8000", "description": "Direct backend access"},
+    ]
     components = openapi_schema.setdefault("components", {}).setdefault("securitySchemes", {})
     components["bearerAuth"] = {
         "type": "http",
