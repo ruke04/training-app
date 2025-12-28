@@ -8,6 +8,7 @@ Resource    ../pageobject/training_app_page.robot
 ${HEADLESS}         false
 ${FRONTEND_URL}     http://localhost:8080
 ${DB_CONTAINER}     training-app-db-1
+${PROJECT_ROOT}     ${CURDIR}${/}..
 
 *** Keywords ***
 
@@ -73,7 +74,7 @@ Register New User
     
 Delete All Users From Database
     [Documentation]    Deletes ALL users from the database. Use for test cleanup/reset.
-    ${result}=    Run Process    docker    compose    exec    -T    db    psql    -U    app    -d    training    -c    DELETE FROM users;
+    ${result}=    Run Process    docker    compose    exec    -T    db    psql    -U    app    -d    training    -c    DELETE FROM users;    cwd=${PROJECT_ROOT}
     Log    Delete all users result: ${result.stdout}
     Log    Delete all users stderr: ${result.stderr}
     Should Be Equal As Integers    ${result.rc}    0    Failed to delete users: ${result.stderr}
