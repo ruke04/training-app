@@ -101,19 +101,21 @@ pipeline {
                         marketsquare/robotframework-browser:latest \
                         tail -f /dev/null
                     
-                    # Fix permissions and install Docker CLI with compose plugin
+                    # Fix permissions and install Docker CLI (static binary - works on any Linux)
                     docker exec --user root rf-tests bash -c "
                         mkdir -p /workspace/robot-results && \
                         chmod 777 /workspace/robot-results && \
-                        echo 'Installing Docker CLI with compose plugin...' && \
-                        apt-get update && \
-                        apt-get install -y ca-certificates curl gnupg lsb-release && \
-                        mkdir -p /etc/apt/keyrings && \
-                        curl -fsSL https://download.docker.com/linux/ubuntu/gpg | gpg --dearmor -o /etc/apt/keyrings/docker.gpg && \
-                        echo \"deb [arch=\$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu focal stable\" > /etc/apt/sources.list.d/docker.list && \
-                        apt-get update && \
-                        apt-get install -y docker-ce-cli docker-compose-plugin && \
-                        chmod 666 /var/run/docker.sock
+                        echo 'Installing Docker CLI (static binary)...' && \
+                        curl -fsSL https://download.docker.com/linux/static/stable/x86_64/docker-24.0.7.tgz | tar xz -C /tmp && \
+                        mv /tmp/docker/docker /usr/local/bin/docker && \
+                        rm -rf /tmp/docker && \
+                        echo 'Installing Docker Compose plugin...' && \
+                        mkdir -p /usr/local/lib/docker/cli-plugins && \
+                        curl -fsSL https://github.com/docker/compose/releases/download/v2.23.3/docker-compose-linux-x86_64 -o /usr/local/lib/docker/cli-plugins/docker-compose && \
+                        chmod +x /usr/local/lib/docker/cli-plugins/docker-compose && \
+                        chmod 666 /var/run/docker.sock && \
+                        echo 'Docker version:' && docker --version && \
+                        echo 'Docker Compose version:' && docker compose version
                     "
                     
                     # Run tests (exit code reflects test results)
