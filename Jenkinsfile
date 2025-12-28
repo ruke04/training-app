@@ -106,12 +106,12 @@ pipeline {
                         mkdir -p /workspace/robot-results && \
                         chmod 777 /workspace/robot-results && \
                         echo 'Installing Docker CLI (static binary)...' && \
-                        curl -fsSL https://download.docker.com/linux/static/stable/x86_64/docker-24.0.7.tgz | tar xz -C /tmp && \
+                        curl -fsSL https://download.docker.com/linux/static/stable/x86_64/docker-27.3.1.tgz | tar xz -C /tmp && \
                         mv /tmp/docker/docker /usr/local/bin/docker && \
                         rm -rf /tmp/docker && \
                         echo 'Installing Docker Compose plugin...' && \
                         mkdir -p /usr/local/lib/docker/cli-plugins && \
-                        curl -fsSL https://github.com/docker/compose/releases/download/v2.23.3/docker-compose-linux-x86_64 -o /usr/local/lib/docker/cli-plugins/docker-compose && \
+                        curl -fsSL https://github.com/docker/compose/releases/download/v2.32.1/docker-compose-linux-x86_64 -o /usr/local/lib/docker/cli-plugins/docker-compose && \
                         chmod +x /usr/local/lib/docker/cli-plugins/docker-compose && \
                         chmod 666 /var/run/docker.sock && \
                         echo 'Docker version:' && docker --version && \
