@@ -74,7 +74,7 @@ Register New User
     
 Delete All Users From Database
     [Documentation]    Deletes ALL users from the database. Use for test cleanup/reset.
-    ${result}=    Run Process    docker    compose    exec    -T    db    psql    -U    app    -d    training    -c    DELETE FROM users;    cwd=${PROJECT_ROOT}
+    ${result}=    Run Process    docker    exec    ${DB_CONTAINER}    psql    -U    app    -d    training    -c    DELETE FROM users;
     Log    Delete all users result: ${result.stdout}
     Log    Delete all users stderr: ${result.stderr}
     Should Be Equal As Integers    ${result.rc}    0    Failed to delete users: ${result.stderr}
