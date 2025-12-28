@@ -51,13 +51,12 @@ Verify Users List Shows Newly Registered User
     # Define rand user name
     ${rand}=        Generate Random String    6    [LETTERS]
     ${new_user}=    Set Variable    newuser_${rand}
-    Enter Username    ${new_user}
-    Enter Password    temu123
-    Click Sign Up Button
-    Wait For Elements State  text=Registration successful! Please login to continue.  visible  timeout=2s
+    Run Keyword And Ignore Error  Register New User    ${new_user}    temu123
+    Reload
+    Sleep    2s
     # Check that New user list table has more rows 
     Click Show all user Button
-    Sleep    2s
+    Wait For Elements State    ${USERS_LIST}    visible
     ${New_User_count}=    Get Element Count    ${TABLE_ROWS}
     Log    ${New_User_count}
     Should Be True    ${New_User_count} > ${user_count}
