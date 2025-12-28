@@ -108,6 +108,8 @@ pipeline {
                     
                     # Run tests (exit code reflects test results)
                     docker exec rf-tests bash -c "
+                        echo 'Installing additional libraries...' && \
+                        pip install robotframework-requests && \
                         echo 'Initializing Browser library...' && \
                         rfbrowser init chromium && \
                         echo 'Running Robot Framework tests...' && \

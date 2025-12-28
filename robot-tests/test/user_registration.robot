@@ -2,7 +2,7 @@
 Documentation    This test case is used to test the user registration functionality
 Resource         ../keywords/common.robot
 Suite Setup       Launch Training App
-Suite Teardown    Close Browser
+Suite Teardown    Delete All Users From Database
 
 *** Test Cases ***
 
