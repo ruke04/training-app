@@ -128,6 +128,7 @@ pipeline {
                         robot \
                             --variable HEADLESS:true \
                             --variable FRONTEND_URL:http://localhost:8080 \
+                            --variable PROJECT_ROOT:/workspace \
                             --outputdir /workspace/robot-results \
                             /workspace/robot-tests/test && \
                         echo 'Copying any browser screenshots...' && \
