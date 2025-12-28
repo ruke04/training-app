@@ -96,14 +96,19 @@ pipeline {
                         --name rf-tests \
                         --network host \
                         -v "$HOST_WORKSPACE:/workspace" \
+                        -v /var/run/docker.sock:/var/run/docker.sock \
                         --add-host=host.docker.internal:host-gateway \
                         marketsquare/robotframework-browser:latest \
                         tail -f /dev/null
                     
-                    # Fix permissions
+                    # Fix permissions and install Docker CLI
                     docker exec --user root rf-tests bash -c "
                         mkdir -p /workspace/robot-results && \
-                        chmod 777 /workspace/robot-results
+                        chmod 777 /workspace/robot-results && \
+                        echo 'Installing Docker CLI...' && \
+                        apt-get update && \
+                        apt-get install -y docker.io && \
+                        chmod 666 /var/run/docker.sock
                     "
                     
                     # Run tests (exit code reflects test results)
