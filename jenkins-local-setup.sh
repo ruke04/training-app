@@ -23,27 +23,29 @@ fi
 echo "📦 Creating Jenkins volume..."
 docker volume create jenkins_home >/dev/null 2>&1 || true
 
-# Detect OS and configure accordingly
+#!/bin/bash
+set -e
+
+# Detect OS and run Jenkins accordingly
 if [[ "$OSTYPE" == "darwin"* ]]; then
-    # macOS - Docker Desktop handles permissions automatically
     echo "🍎 Detected macOS (Docker Desktop)"
-    
+
     docker run -d \
       --name jenkins \
       --restart unless-stopped \
       -p 8081:8080 \
       -p 50000:50000 \
       -v jenkins_home:/var/jenkins_home \
-      -v /var/run/docker.sock:/var/run/docker.sock \
       -v $HOME/.aws:/var/jenkins_home/.aws \
       -e JAVA_OPTS="-Dhudson.model.DirectoryBrowserSupport.CSP=" \
       jenkins/jenkins:lts
+
 else
     # Linux - need to add Docker socket group
     echo "🐧 Detected Linux"
     DOCKER_GID=$(stat -c %g /var/run/docker.sock)
     echo "🔐 Using Docker socket group ID: $DOCKER_GID"
-    
+
     docker run -d \
       --name jenkins \
       --restart unless-stopped \
