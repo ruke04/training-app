@@ -9,5 +9,10 @@ Suite Teardown   Close browser
 
 Verify company logo is visible
     [Documentation]    This test is to verify that the company's logo is visible
-    Wait For Element To Be Visible    ${TRAINING_APP_TITLE}
+    Enter Login Username         Efe
+    Enter Login Password         12345
+    Click Login Button      
+    Wait For Elements State  text=Login successful  visible  timeout=2s
+    Click Open Protected Site
+    Wait For Element To Be Visible   ${COMPANY_LOGO}    timeout=10s
 
