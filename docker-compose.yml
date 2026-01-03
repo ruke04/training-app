@@ -17,7 +17,9 @@ services:
       - db_data:/var/lib/postgresql/data
 
   backend:
-    build: ./backend
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
     environment:
       DATABASE_URL: postgresql+psycopg2://app:app@db:5432/training
       JWT_SECRET: dev-secret-change-me
@@ -29,8 +31,6 @@ services:
         condition: service_healthy
     ports:
       - "8000:8000"
-    volumes:
-      - ./frontend/hidden-site:/app/protected_site:ro
 
   frontend:
     build: ./frontend
