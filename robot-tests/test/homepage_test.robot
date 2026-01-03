@@ -9,6 +9,7 @@ Suite Teardown   Close browser
 
 Verify company logo is visible
     [Documentation]    This test is to verify that the company's logo is visible
+    Run Keyword And Ignore Error  Register New User    Efe    12345
     Enter Login Username         Efe
     Enter Login Password         12345
     Click Login Button      
