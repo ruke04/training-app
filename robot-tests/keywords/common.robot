@@ -78,3 +78,20 @@ Delete All Users From Database
     Log    Delete all users result: ${result.stdout}
     Log    Delete all users stderr: ${result.stderr}
     Should Be Equal As Integers    ${result.rc}    0    Failed to delete users: ${result.stderr}
+
+Click Open Protected Site
+    Wait For Element To Be Visible   ${OPEN_PROTECTED_SITE_BUTTON}  timeout=10s
+    Click  ${OPEN_PROTECTED_SITE_BUTTON}
+
+Enter username to delete
+    [Arguments]    ${username}=None
+    Wait For Element To Be Visible   ${DELETE_USERNAME}    timeout=10s
+    Run Keyword If    '${username}' != 'None'    Type Text    ${DELETE_USERNAME}    ${username}
+
+Click Delete User Button
+    Click  ${DELETE_BTN}
+    Wait For Elements State   ${DELETE_NOTE}    visible     timeout=10s
+    Browser.Wait For Elements State    ${DELETE_CONFIRM}    visible    timeout=10s
+    Browser.Wait For Elements State    ${DELETE_CONFIRM}    enabled    timeout=10s
+    Browser.Click    ${DELETE_CONFIRM}
+    

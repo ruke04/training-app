@@ -67,9 +67,19 @@ Verify Users List Shows Newly Registered User
     ${last_row_text}=    Get Text    ${LAST_ROW}
     Log    Last row data: ${last_row_text}
    
-
-
-
-
-
+Verify User Can Be Deleted 
+    [Documentation]    Verify user can be deleted in users list 
+    ${new_user} =  Get Text    ${LAST_ROW}/td[2]        #takes the username from the last column
+    Enter username to delete    ${new_user}
+    Click Delete User Button
+    Wait For Elements State    ${NOTIFICATION_MESSAGE}    visible   timeout=10s
+    FOR    ${i}    IN RANGE    10
+        ${notification_text}=    Get Text    ${NOTIFICATION_MESSAGE}
+        ${notification_text}=    Strip String    ${notification_text}
+        Run Keyword If    "${notification_text}" != ""    Exit For Loop
+        Sleep    1s
+    END
+    Log    Notification text: ${notification_text}
+    Should Not Be Empty    ${notification_text}
+    Should Contain    ${notification_text}    deleted successfully
 
