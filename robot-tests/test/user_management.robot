@@ -82,7 +82,3 @@ Verify User Can Be Deleted
     Log    Notification text: ${notification_text}
     Should Not Be Empty    ${notification_text}
     Should Contain    ${notification_text}    deleted successfully
-
-
-    
-
