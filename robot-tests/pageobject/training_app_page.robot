@@ -21,3 +21,4 @@ ${DELETE_USERNAME}               //input[@id="delete_username"]
 ${DELETE_BTN}                   //button[text()="Delete User"]
 ${DELETE_NOTE}                  //*[@id="confirmModal"]/div
 ${DELETE_CONFIRM}               //button[text()="Confirm"]
+

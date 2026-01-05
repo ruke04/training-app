@@ -94,4 +94,12 @@ Click Delete User Button
     Browser.Wait For Elements State    ${DELETE_CONFIRM}    visible    timeout=10s
     Browser.Wait For Elements State    ${DELETE_CONFIRM}    enabled    timeout=10s
     Browser.Click    ${DELETE_CONFIRM}
+
+Click Delete My Account Button
+    Click  ${DELETE_MY_ACCOUNT}
+    Wait For Elements State   ${DELETE_NOTE}    visible     timeout=10s
+    Browser.Wait For Elements State    ${DELETE_CONFIRM}    visible    timeout=10s
+    Browser.Wait For Elements State    ${DELETE_CONFIRM}    enabled    timeout=10s
+    Browser.Click    ${DELETE_CONFIRM}
+
     
