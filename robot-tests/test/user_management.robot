@@ -82,3 +82,18 @@ Verify User Can Be Deleted
     Log    Notification text: ${notification_text}
     Should Not Be Empty    ${notification_text}
     Should Contain    ${notification_text}    deleted successfully
+
+Verify Logged In User Can Delete Own Account
+    [Documentation]    Verify logged-in user can delete their own account
+    ${rand}=        Generate Random String    6    [LETTERS]
+    ${username}=    Set Variable    deleteuser_${rand}
+    ${password}=    Set Variable    testpass123
+    Register New User    ${username}    ${password}
+    Enter Login Username  ${username}
+    Enter Login Password  ${password}
+    Click Login Button
+    Wait For Elements State    text=Login successful    visible    timeout=10s
+    Click Delete My Account Button
+    ${notification_text}=    Browser.Get Text    id=notification
+    Log    Notification text: ${notification_text}
+    Should Contain    ${notification_text}    deleted successfully
