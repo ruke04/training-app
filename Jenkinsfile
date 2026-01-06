@@ -125,7 +125,7 @@ pipeline {
                         sleep 2
                     done
                     
-                    # Wait for Backend API to be healthy
+                    # Wait for Backend API to be healthy (check inside container)
                     echo "Checking backend..."
                     for i in $(seq 1 30); do
                         if docker compose exec -T backend python -c "import urllib.request; urllib.request.urlopen('http://localhost:8000/api-docs')" > /dev/null 2>&1; then
@@ -136,10 +136,10 @@ pipeline {
                         sleep 2
                     done
                     
-                    # Wait for Frontend (nginx) to be healthy
+                    # Wait for Frontend (nginx) to be healthy (check inside container)
                     echo "Checking frontend..."
                     for i in $(seq 1 30); do
-                        if curl -sf http://localhost:8080 > /dev/null 2>&1; then
+                        if docker compose exec -T frontend wget -q --spider http://localhost:80 > /dev/null 2>&1; then
                             echo "✅ Frontend is ready"
                             break
                         fi
