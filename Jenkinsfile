@@ -191,8 +191,25 @@ pipeline {
                 echo 'Starting services...'
                 sh '''
                     docker compose up -d
-                    sleep 10
+                    
+                    # Wait for backend to be ready
+                    echo "Waiting for backend to be ready..."
+                    for i in 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26 27 28 29 30; do
+                        if docker compose exec -T backend python -c "import urllib.request; urllib.request.urlopen('http://localhost:8000/api-docs').read()" 2>/dev/null; then
+                            echo "Backend is ready!"
+                            break
+                        fi
+                        echo "Waiting for backend... ($i/30)"
+                        sleep 2
+                    done
+                    
+                    # Wait a bit more for frontend to connect to backend
+                    sleep 5
+                    
                     docker compose ps
+                    echo ""
+                    echo "Service status:"
+                    docker compose ps --format "table {{.Service}}\t{{.Status}}\t{{.Ports}}"
                 '''
             }
         }
@@ -201,15 +218,41 @@ pipeline {
             steps {
                 echo 'Checking service health...'
                 sh '''
-                    # Use Docker gateway IP (default for Docker Desktop)
-                    HOST="172.17.0.1"
+                    # Detect host IP - try multiple methods
+                    if command -v ip >/dev/null 2>&1; then
+                        # Linux - get default gateway
+                        HOST=$(ip route | grep default | awk '{print $3}' | head -1)
+                    elif command -v route >/dev/null 2>&1; then
+                        # macOS/Linux fallback
+                        HOST=$(route -n get default 2>/dev/null | grep gateway | awk '{print $2}' | head -1)
+                    else
+                        # Fallback to Docker gateway
+                        HOST="172.17.0.1"
+                    fi
+                    
+                    # If still empty, use localhost
+                    if [ -z "$HOST" ]; then
+                        HOST="localhost"
+                    fi
                     
                     echo "Using host: $HOST"
                     
+                    # First, verify backend is accessible directly
+                    echo "Checking backend directly..."
+                    for i in 1 2 3 4 5 6 7 8 9 10; do
+                        if docker compose exec -T backend python -c "import urllib.request; urllib.request.urlopen('http://localhost:8000/api-docs').read()" 2>/dev/null; then
+                            echo "✅ Backend is responding directly"
+                            break
+                        fi
+                        echo "Waiting for backend direct access... ($i/10)"
+                        sleep 2
+                    done
+                    
                     # Wait for frontend (nginx) which proxies to backend
+                    echo "Checking frontend..."
                     for i in 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26 27 28 29 30; do
                         if curl -sf --connect-timeout 5 http://$HOST:8080 >/dev/null 2>&1; then
-                            echo "Frontend is ready!"
+                            echo "✅ Frontend is ready!"
                             break
                         fi
                         echo "Waiting for frontend on $HOST:8080... ($i/30)"
@@ -217,18 +260,28 @@ pipeline {
                     done
                     
                     # Wait for API via nginx proxy
+                    echo "Checking backend via nginx proxy..."
                     for i in 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26 27 28 29 30; do
                         if curl -sf --connect-timeout 5 http://$HOST:8080/api/api-docs >/dev/null 2>&1; then
-                            echo "Backend API is ready!"
+                            echo "✅ Backend API is accessible via proxy!"
                             break
                         fi
                         echo "Waiting for backend API on $HOST:8080/api... ($i/30)"
                         sleep 2
                     done
                     
+                    echo ""
                     echo "Testing final connectivity..."
-                    curl -i http://$HOST:8080 || exit 1
-                    curl -i http://$HOST:8080/api/api-docs || exit 1
+                    echo "Frontend:"
+                    curl -i http://$HOST:8080 || echo "❌ Frontend check failed"
+                    echo ""
+                    echo "Backend API via proxy:"
+                    curl -i http://$HOST:8080/api/api-docs || echo "❌ Backend API check failed"
+                    
+                    # Verify backend container can reach itself
+                    echo ""
+                    echo "Verifying backend container connectivity..."
+                    docker compose exec -T backend python -c "import urllib.request; print('Backend self-check:', urllib.request.urlopen('http://localhost:8000/api-docs').getcode())" || echo "❌ Backend self-check failed"
                 '''
             }
         }
