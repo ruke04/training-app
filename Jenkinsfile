@@ -2,73 +2,16 @@ pipeline {
     agent any
     
     parameters {
-        // Dynamic branch selection using Active Choices Plugin
-        // Install "Active Choices Plugin" in Jenkins: Manage Jenkins -> Plugins -> Available -> Search "Active Choices"
-        // This fetches branches from the repository URL configured in the job's SCM settings
-        activeChoice(
+        // Branch selection - use choice dropdown or custom branch name
+        choice(
             name: 'BRANCH',
-            description: 'Select branch to build (dynamically fetched from repository). Defaults to "Master" if not selected.',
-            script: [
-                $class: 'GroovyScript',
-                fallbackScript: [
-                    classpath: [],
-                    sandbox: false,
-                    script: 'return ["main", "Master", "develop", "staging"]'
-                ],
-                script: [
-                    classpath: [],
-                    sandbox: false,
-                    script: '''
-                        import jenkins.model.Jenkins
-                        import hudson.model.*
-                        import hudson.plugins.git.*
-                        
-                        try {
-                            // Get the current build's job
-                            def build = Thread.currentThread().executable
-                            if (build != null) {
-                                def project = build.getParent()
-                                if (project != null) {
-                                    def scm = project.getScm()
-                                    if (scm instanceof GitSCM) {
-                                        def remoteConfigs = scm.getUserRemoteConfigs()
-                                        if (remoteConfigs != null && !remoteConfigs.isEmpty()) {
-                                            def repoUrl = remoteConfigs[0].getUrl()
-                                            
-                                            // Fetch branches using git ls-remote
-                                            def proc = ["git", "ls-remote", "--heads", repoUrl].execute()
-                                            proc.waitFor()
-                                            
-                                            if (proc.exitValue() == 0) {
-                                                def branches = []
-                                                proc.text.eachLine { line ->
-                                                    def matcher = line =~ /refs\\/heads\\/(.+)$/
-                                                    if (matcher) {
-                                                        branches.add(matcher.group(1))
-                                                    }
-                                                }
-                                                if (!branches.isEmpty()) {
-                                                    return branches.sort()
-                                                }
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                        } catch (Exception e) {
-                            // Fallback if fetch fails
-                        }
-                        // Fallback to common branch names
-                        return ["main", "Master", "develop", "staging"]
-                    '''
-                ]
-            ]
+            choices: ['Master'],
+            description: 'Select branch to build from common branches'
         )
-        // Fallback string parameter if Active Choices plugin is not available or fails
         string(
-            name: 'BRANCH_FALLBACK',
+            name: 'BRANCH_CUSTOM',
             defaultValue: '',
-            description: 'If dropdown above is empty or doesn\'t work, enter branch name here manually'
+            description: 'Or enter a custom branch name (leave empty to use BRANCH selection above)'
         )
     }
     
@@ -83,36 +26,20 @@ pipeline {
     }
     
     stages {
-        stage('List Available Branches') {
-            steps {
-                script {
-                    echo "Fetching available branches from repository..."
-                    def repoUrl = scm.userRemoteConfigs[0].url
-                    
-                    // Fetch all branches from remote repository
-                    sh """
-                        echo "Repository URL: ${repoUrl}"
-                        echo ""
-                        echo "Available branches:"
-                        git ls-remote --heads ${repoUrl} | sed 's/.*refs\\/heads\\///' | sort || echo "Could not fetch branches (will proceed with checkout)"
-                    """
-                }
-            }
-        }
-        
         stage('Checkout') {
             steps {
                 script {
                     // Determine which branch to checkout
                     def selectedBranch = params.BRANCH
-                    def fallbackBranch = params.BRANCH_FALLBACK
+                    def customBranch = params.BRANCH_CUSTOM
                     
                     // Validate and set branch (handle null, empty, or "null" string)
                     def branchToCheckout = null
                     
-                    if (fallbackBranch && fallbackBranch.trim() && fallbackBranch != 'null') {
-                        branchToCheckout = fallbackBranch.trim()
-                        echo "Using fallback branch: ${branchToCheckout}"
+                    // Use custom branch if provided, otherwise use selected branch from dropdown
+                    if (customBranch && customBranch.trim() && customBranch != 'null') {
+                        branchToCheckout = customBranch.trim()
+                        echo "Using custom branch: ${branchToCheckout}"
                     } else if (selectedBranch && selectedBranch.trim() && selectedBranch != 'null') {
                         branchToCheckout = selectedBranch.trim()
                         echo "Using selected branch: ${branchToCheckout}"
@@ -179,68 +106,59 @@ pipeline {
             }
         }
         
-        stage('Build Docker Images') {
-            steps {
-                echo 'Building Docker images...'
-                sh 'docker compose build --no-cache'
-            }
-        }
-        
         stage('Start Services') {
             steps {
-                echo 'Starting services...'
+                echo 'Building and starting services...'
                 sh '''
-                    docker compose up -d
-                    sleep 10
+                    # Get the host path for volume mounts (Jenkins runs in Docker)
+                    JENKINS_HOST_PATH=$(docker inspect jenkins --format '{{range .Mounts}}{{if eq .Destination "/var/jenkins_home"}}{{.Source}}{{end}}{{end}}')
+                    JOB_DIR=$(echo "$JOB_NAME" | tr '/' '_')
+                    HOST_WORKSPACE="${JENKINS_HOST_PATH}/workspace/${JOB_DIR}"
+                    
+                    # Set the protected site path for docker-compose
+                    export PROTECTED_SITE_PATH="${HOST_WORKSPACE}/frontend/hidden-site"
+                    echo "Protected site path: $PROTECTED_SITE_PATH"
+                    
+                    docker compose up -d --build
+                    
+                    echo "Waiting for services to be healthy..."
+                    
+                    # Wait for DB to be healthy
+                    echo "Checking database..."
+                    for i in $(seq 1 30); do
+                        if docker compose exec -T db pg_isready -U app -d training > /dev/null 2>&1; then
+                            echo "✅ Database is ready"
+                            break
+                        fi
+                        [ $i -eq 30 ] && echo "❌ Database not ready" && exit 1
+                        sleep 2
+                    done
+                    
+                    # Wait for Backend API to be healthy (check inside container)
+                    echo "Checking backend..."
+                    for i in $(seq 1 30); do
+                        if docker compose exec -T backend python -c "import urllib.request; urllib.request.urlopen('http://localhost:8000/api-docs')" > /dev/null 2>&1; then
+                            echo "✅ Backend is ready"
+                            break
+                        fi
+                        [ $i -eq 30 ] && echo "❌ Backend not ready" && exit 1
+                        sleep 2
+                    done
+                    
+                    # Wait for Frontend (nginx) to be healthy (check inside container)
+                    #echo "Checking frontend..."
+                    #for i in $(seq 1 30); do
+                    #    if docker compose exec -T frontend wget -q --spider http://localhost:80 > /dev/null 2>&1; then
+                    #        echo "✅ Frontend is ready"
+                    #        break
+                    #    fi
+                    #    [ $i -eq 30 ] && echo "❌ Frontend not ready" && exit 1
+                    #    sleep 2
+                    #done
+                    
+                    echo ""
+                    echo "All services are healthy!"
                     docker compose ps
-                '''
-            }
-        }
-        
-        stage('Health Check') {
-            steps {
-                echo 'Checking service health...'
-                sh '''
-                    # Use Docker gateway IP (default for Docker Desktop)
-                    HOST="172.17.0.1"
-                    
-                    echo "Using host: $HOST"
-                    
-                    # Wait for frontend (nginx) which proxies to backend
-                    for i in 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26 27 28 29 30; do
-                        if curl -sf --connect-timeout 5 http://$HOST:8080 >/dev/null 2>&1; then
-                            echo "Frontend is ready!"
-                            break
-                        fi
-                        echo "Waiting for frontend on $HOST:8080... ($i/30)"
-                        sleep 2
-                    done
-                    
-                    # Wait for API via nginx proxy
-                    for i in 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26 27 28 29 30; do
-                        if curl -sf --connect-timeout 5 http://$HOST:8080/api/api-docs >/dev/null 2>&1; then
-                            echo "Backend API is ready!"
-                            break
-                        fi
-                        echo "Waiting for backend API on $HOST:8080/api... ($i/30)"
-                        sleep 2
-                    done
-                    
-                    echo "Testing final connectivity..."
-                    curl -i http://$HOST:8080 || exit 1
-                    curl -i http://$HOST:8080/api/api-docs || exit 1
-                '''
-            }
-        }
-        
-        stage('Verify Volume Mounts') {
-            steps {
-                echo 'Verifying backend volume mounts...'
-                sh '''
-                    # Check if protected site files are accessible in backend container
-                    docker compose exec -T backend ls -la /app/protected_site/ || echo "Directory listing failed"
-                    docker compose exec -T backend test -f /app/protected_site/index.html && echo "✅ index.html exists" || echo "❌ index.html missing"
-                    docker compose exec -T backend env | grep PROTECTED_DIR || echo "PROTECTED_DIR not set"
                 '''
             }
         }
