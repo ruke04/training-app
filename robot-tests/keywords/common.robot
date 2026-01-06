@@ -98,4 +98,11 @@ Click Delete User Button
 Click Delete My Account Button
     Wait For Element To Be Visible   ${DELETE_MY_ACCOUNT}    timeout=10s
     Click  ${DELETE_MY_ACCOUNT}
+
+Click About us Button
+    Wait For Element To Be Visible   ${ABOUT_US_BUTTON}    timeout=10s
+    Click  ${ABOUT_US_BUTTON}
+   
+
+
     
