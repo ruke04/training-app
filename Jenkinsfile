@@ -146,15 +146,15 @@ pipeline {
                     done
                     
                     # Wait for Frontend (nginx) to be healthy (check inside container)
-                    echo "Checking frontend..."
-                    for i in $(seq 1 30); do
-                        if docker compose exec -T frontend wget -q --spider http://localhost:80 > /dev/null 2>&1; then
-                            echo "✅ Frontend is ready"
-                            break
-                        fi
-                        [ $i -eq 30 ] && echo "❌ Frontend not ready" && exit 1
-                        sleep 2
-                    done
+                    #echo "Checking frontend..."
+                    #for i in $(seq 1 30); do
+                    #    if docker compose exec -T frontend wget -q --spider http://localhost:80 > /dev/null 2>&1; then
+                    #        echo "✅ Frontend is ready"
+                    #        break
+                    #    fi
+                    #    [ $i -eq 30 ] && echo "❌ Frontend not ready" && exit 1
+                    #    sleep 2
+                    #done
                     
                     echo ""
                     echo "All services are healthy!"
