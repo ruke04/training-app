@@ -5,7 +5,7 @@ pipeline {
         // Branch selection - use choice dropdown or custom branch name
         choice(
             name: 'BRANCH',
-            choices: ['Master', 'main', 'master', 'develop', 'staging'],
+            choices: ['Master'],
             description: 'Select branch to build from common branches'
         )
         string(
@@ -24,24 +24,6 @@ pipeline {
         timeout(time: 30, unit: 'MINUTES')
         buildDiscarder(logRotator(numToKeepStr: '10'))
     }
-    
-    stages {
-        stage('List Available Branches') {
-            steps {
-                script {
-                    echo "Fetching available branches from repository..."
-                    def repoUrl = scm.userRemoteConfigs[0].url
-                    
-                    // Fetch all branches from remote repository
-                    sh """
-                        echo "Repository URL: ${repoUrl}"
-                        echo ""
-                        echo "Available branches:"
-                        git ls-remote --heads ${repoUrl} | sed 's/.*refs\\/heads\\///' | sort || echo "Could not fetch branches (will proceed with checkout)"
-                    """
-                }
-            }
-        }
         
         stage('Checkout') {
             steps {
@@ -123,131 +105,50 @@ pipeline {
             }
         }
         
-        stage('Build Docker Images') {
-            steps {
-                echo 'Building Docker images...'
-                sh 'docker compose build --no-cache'
-            }
-        }
-        
         stage('Start Services') {
             steps {
-                echo 'Starting services...'
+                echo 'Building and starting services...'
                 sh '''
-                    # Docker Compose will handle dependencies automatically:
-                    # 1. Start db and wait for it to be healthy
-                    # 2. Start backend (depends on db being healthy)
-                    # 3. Start frontend
-                    docker compose up -d
+                    docker compose up -d --build
                     
-                    # Wait for all services to be running
-                    echo "Waiting for all services to start..."
-                    sleep 10
+                    echo "Waiting for services to be healthy..."
                     
-                    # Check container status
-                    echo "=== Container Status ==="
-                    docker compose ps
-                    echo ""
+                    # Wait for DB to be healthy
+                    echo "Checking database..."
+                    for i in $(seq 1 30); do
+                        if docker compose exec -T db pg_isready -U app -d training > /dev/null 2>&1; then
+                            echo "✅ Database is ready"
+                            break
+                        fi
+                        [ $i -eq 30 ] && echo "❌ Database not ready" && exit 1
+                        sleep 2
+                    done
                     
-                    # Verify all containers are running
-                    if ! docker compose ps | grep -q "Up.*backend"; then
-                        echo "❌ Backend container is not running!"
-                        docker compose logs --tail=50 backend
-                        exit 1
-                    fi
-                    
-                    if ! docker compose ps | grep -q "Up.*frontend"; then
-                        echo "❌ Frontend container is not running!"
-                        docker compose logs --tail=50 frontend
-                        exit 1
-                    fi
-                    
-                    echo "✅ All containers are running"
-                '''
-            }
-        }
-        
-        stage('Health Check') {
-            steps {
-                echo 'Checking service health...'
-                sh '''
-                    # Detect host IP for external access
-                    if command -v ip >/dev/null 2>&1; then
-                        HOST=$(ip route | grep default | awk '{print $3}' | head -1)
-                    elif command -v route >/dev/null 2>&1; then
-                        HOST=$(route -n get default 2>/dev/null | grep gateway | awk '{print $2}' | head -1)
-                    else
-                        HOST="172.17.0.1"
-                    fi
-                    
-                    if [ -z "$HOST" ]; then
-                        HOST="localhost"
-                    fi
-                    
-                    echo "Using host: $HOST"
-                    
-                    # Verify backend is responding
+                    # Wait for Backend API to be healthy
                     echo "Checking backend..."
-                    for i in 1 2 3 4 5 6 7 8 9 10; do
-                        if docker compose exec -T backend python -c "import urllib.request; urllib.request.urlopen('http://localhost:8000/api-docs').read()" 2>/dev/null; then
-                            echo "✅ Backend is responding"
+                    for i in $(seq 1 30); do
+                        if docker compose exec -T backend python -c "import urllib.request; urllib.request.urlopen('http://localhost:8000/api-docs')" > /dev/null 2>&1; then
+                            echo "✅ Backend is ready"
                             break
                         fi
-                        if [ $i -eq 10 ]; then
-                            echo "❌ Backend health check failed"
-                            docker compose logs --tail=30 backend
-                            exit 1
-                        fi
+                        [ $i -eq 30 ] && echo "❌ Backend not ready" && exit 1
                         sleep 2
                     done
                     
-                    # Verify frontend is accessible
+                    # Wait for Frontend (nginx) to be healthy
                     echo "Checking frontend..."
-                    for i in 1 2 3 4 5 6 7 8 9 10; do
-                        if curl -sf --connect-timeout 5 http://$HOST:8080 >/dev/null 2>&1; then
-                            echo "✅ Frontend is accessible"
+                    for i in $(seq 1 30); do
+                        if curl -sf http://localhost:8080 > /dev/null 2>&1; then
+                            echo "✅ Frontend is ready"
                             break
                         fi
-                        if [ $i -eq 10 ]; then
-                            echo "❌ Frontend health check failed"
-                            docker compose logs --tail=30 frontend
-                            exit 1
-                        fi
-                        sleep 2
-                    done
-                    
-                    # Verify backend API via proxy
-                    echo "Checking backend API via proxy..."
-                    for i in 1 2 3 4 5 6 7 8 9 10; do
-                        if curl -sf --connect-timeout 5 http://$HOST:8080/api/api-docs >/dev/null 2>&1; then
-                            echo "✅ Backend API is accessible via proxy"
-                            break
-                        fi
-                        if [ $i -eq 10 ]; then
-                            echo "❌ Backend API proxy check failed"
-                            echo "Nginx logs:"
-                            docker compose logs --tail=30 frontend
-                            echo "Backend logs:"
-                            docker compose logs --tail=30 backend
-                            exit 1
-                        fi
+                        [ $i -eq 30 ] && echo "❌ Frontend not ready" && exit 1
                         sleep 2
                     done
                     
                     echo ""
-                    echo "✅ All health checks passed"
-                '''
-            }
-        }
-        
-        stage('Verify Volume Mounts') {
-            steps {
-                echo 'Verifying backend volume mounts...'
-                sh '''
-                    # Check if protected site files are accessible in backend container
-                    docker compose exec -T backend ls -la /app/protected_site/ || echo "Directory listing failed"
-                    docker compose exec -T backend test -f /app/protected_site/index.html && echo "✅ index.html exists" || echo "❌ index.html missing"
-                    docker compose exec -T backend env | grep PROTECTED_DIR || echo "PROTECTED_DIR not set"
+                    echo "All services are healthy!"
+                    docker compose ps
                 '''
             }
         }
