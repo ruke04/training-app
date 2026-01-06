@@ -27,7 +27,7 @@ services:
     ports:
       - "8000:8000"
     volumes:
-      - ./frontend/hidden-site:/app/protected_site:ro
+      - ${PROTECTED_SITE_PATH:-./frontend/hidden-site}:/app/protected_site:ro
 
   frontend:
     build: ./frontend

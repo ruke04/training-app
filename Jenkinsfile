@@ -110,6 +110,15 @@ pipeline {
             steps {
                 echo 'Building and starting services...'
                 sh '''
+                    # Get the host path for volume mounts (Jenkins runs in Docker)
+                    JENKINS_HOST_PATH=$(docker inspect jenkins --format '{{range .Mounts}}{{if eq .Destination "/var/jenkins_home"}}{{.Source}}{{end}}{{end}}')
+                    JOB_DIR=$(echo "$JOB_NAME" | tr '/' '_')
+                    HOST_WORKSPACE="${JENKINS_HOST_PATH}/workspace/${JOB_DIR}"
+                    
+                    # Set the protected site path for docker-compose
+                    export PROTECTED_SITE_PATH="${HOST_WORKSPACE}/frontend/hidden-site"
+                    echo "Protected site path: $PROTECTED_SITE_PATH"
+                    
                     docker compose up -d --build
                     
                     echo "Waiting for services to be healthy..."
