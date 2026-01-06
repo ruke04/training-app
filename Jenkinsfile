@@ -7,13 +7,13 @@ pipeline {
         // This fetches branches from the repository URL configured in the job's SCM settings
         activeChoice(
             name: 'BRANCH',
-            description: 'Select branch to build (dynamically fetched from repository)',
+            description: 'Select branch to build (dynamically fetched from repository). Defaults to "Master" if not selected.',
             script: [
                 $class: 'GroovyScript',
                 fallbackScript: [
                     classpath: [],
                     sandbox: false,
-                    script: 'return ["main", "master", "develop", "staging"]'
+                    script: 'return ["main", "Master", "develop", "staging"]'
                 ],
                 script: [
                     classpath: [],
@@ -59,7 +59,7 @@ pipeline {
                             // Fallback if fetch fails
                         }
                         // Fallback to common branch names
-                        return ["main", "master", "develop", "staging"]
+                        return ["main", "Master", "develop", "staging"]
                     '''
                 ]
             ]
@@ -75,8 +75,6 @@ pipeline {
     environment {
         COMPOSE_PROJECT_NAME = 'training-app'
         DOCKER_BUILDKIT = '1'
-        // Use fallback branch if provided, otherwise use selected branch from dropdown
-        BRANCH_TO_BUILD = "${params.BRANCH_FALLBACK ?: params.BRANCH}"
     }
     
     options {
@@ -105,7 +103,41 @@ pipeline {
         stage('Checkout') {
             steps {
                 script {
-                    def branchToCheckout = env.BRANCH_TO_BUILD
+                    // Determine which branch to checkout
+                    def selectedBranch = params.BRANCH
+                    def fallbackBranch = params.BRANCH_FALLBACK
+                    
+                    // Validate and set branch (handle null, empty, or "null" string)
+                    def branchToCheckout = null
+                    
+                    if (fallbackBranch && fallbackBranch.trim() && fallbackBranch != 'null') {
+                        branchToCheckout = fallbackBranch.trim()
+                        echo "Using fallback branch: ${branchToCheckout}"
+                    } else if (selectedBranch && selectedBranch.trim() && selectedBranch != 'null') {
+                        branchToCheckout = selectedBranch.trim()
+                        echo "Using selected branch: ${branchToCheckout}"
+                    } else {
+                        // Default to main or Master if no valid branch specified
+                        echo "WARNING: No valid branch specified. Checking available branches..."
+                        def repoUrl = scm.userRemoteConfigs[0].url
+                        def branches = sh(
+                            script: "git ls-remote --heads ${repoUrl} | sed 's/.*refs\\/heads\\///' | sort",
+                            returnStdout: true
+                        ).trim().split('\n')
+                        
+                        // Try main first, then Master, then first available branch
+                        if (branches.contains('main')) {
+                            branchToCheckout = 'main'
+                        } else if (branches.contains('Master')) {
+                            branchToCheckout = 'Master'
+                        } else if (branches.size() > 0) {
+                            branchToCheckout = branches[0]
+                        } else {
+                            error("No branches found in repository and no branch specified!")
+                        }
+                        echo "Using default branch: ${branchToCheckout}"
+                    }
+                    
                     echo "Checking out branch: ${branchToCheckout}"
                     
                     // Get the repository URL from SCM
@@ -119,8 +151,7 @@ pipeline {
                     )
                     
                     if (branchExists != 0) {
-                        echo "WARNING: Branch '${branchToCheckout}' may not exist in repository"
-                        echo "Attempting checkout anyway..."
+                        error("Branch '${branchToCheckout}' does not exist in repository. Please select a valid branch.")
                     }
                     
                     checkout([
