@@ -17,3 +17,7 @@ ${SHOW_ALL_USERS_BUTTON}            //button[text()="Show All Users"]
 ${REFRESH_PROFILE_BUTTON}           //button[contains(text(),"Refresh Profile")]
 ${OPEN_PROTECTED_SITE_BUTTON}       //button[text()="Open Protected Site"]
 ${COMPANY_LOGO}                     //img[@alt="EFEWALICOMMS OY Logo"]
+${DELETE_USERNAME}               //input[@id="delete_username"]
+${DELETE_BTN}                   //button[text()="Delete User"]
+${DELETE_NOTE}                  //*[@id="confirmModal"]/div
+${DELETE_CONFIRM}               //button[text()="Confirm"]
