@@ -1,9 +1,82 @@
 pipeline {
     agent any
     
+    parameters {
+        // Dynamic branch selection using Active Choices Plugin
+        // Install "Active Choices Plugin" in Jenkins: Manage Jenkins -> Plugins -> Available -> Search "Active Choices"
+        // This fetches branches from the repository URL configured in the job's SCM settings
+        activeChoice(
+            name: 'BRANCH',
+            description: 'Select branch to build (dynamically fetched from repository)',
+            script: [
+                $class: 'GroovyScript',
+                fallbackScript: [
+                    classpath: [],
+                    sandbox: false,
+                    script: 'return ["main", "master", "develop", "staging"]'
+                ],
+                script: [
+                    classpath: [],
+                    sandbox: false,
+                    script: '''
+                        import jenkins.model.Jenkins
+                        import hudson.model.*
+                        import hudson.plugins.git.*
+                        
+                        try {
+                            // Get the current build's job
+                            def build = Thread.currentThread().executable
+                            if (build != null) {
+                                def project = build.getParent()
+                                if (project != null) {
+                                    def scm = project.getScm()
+                                    if (scm instanceof GitSCM) {
+                                        def remoteConfigs = scm.getUserRemoteConfigs()
+                                        if (remoteConfigs != null && !remoteConfigs.isEmpty()) {
+                                            def repoUrl = remoteConfigs[0].getUrl()
+                                            
+                                            // Fetch branches using git ls-remote
+                                            def proc = ["git", "ls-remote", "--heads", repoUrl].execute()
+                                            proc.waitFor()
+                                            
+                                            if (proc.exitValue() == 0) {
+                                                def branches = []
+                                                proc.text.eachLine { line ->
+                                                    def matcher = line =~ /refs\\/heads\\/(.+)$/
+                                                    if (matcher) {
+                                                        branches.add(matcher.group(1))
+                                                    }
+                                                }
+                                                if (!branches.isEmpty()) {
+                                                    return branches.sort()
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        } catch (Exception e) {
+                            // Fallback if fetch fails
+                        }
+                        // Fallback to common branch names
+                        return ["main", "master", "develop", "staging"]
+                    '''
+                ]
+            ]
+        )
+        // Fallback string parameter if Active Choices plugin is not available or fails
+        string(
+            name: 'BRANCH_FALLBACK',
+            defaultValue: '',
+            description: 'If dropdown above is empty or doesn\'t work, enter branch name here manually'
+        )
+    }
+    
     environment {
         COMPOSE_PROJECT_NAME = 'training-app'
         DOCKER_BUILDKIT = '1'
+        // Use fallback branch if provided, otherwise use selected branch from dropdown
+        BRANCH_TO_BUILD = "${params.BRANCH_FALLBACK ?: params.BRANCH}"
     }
     
     options {
@@ -12,10 +85,66 @@ pipeline {
     }
     
     stages {
+        stage('List Available Branches') {
+            steps {
+                script {
+                    echo "Fetching available branches from repository..."
+                    def repoUrl = scm.userRemoteConfigs[0].url
+                    
+                    // Fetch all branches from remote repository
+                    sh """
+                        echo "Repository URL: ${repoUrl}"
+                        echo ""
+                        echo "Available branches:"
+                        git ls-remote --heads ${repoUrl} | sed 's/.*refs\\/heads\\///' | sort || echo "Could not fetch branches (will proceed with checkout)"
+                    """
+                }
+            }
+        }
+        
         stage('Checkout') {
             steps {
-                echo 'Checking out source code...'
-                checkout scm
+                script {
+                    def branchToCheckout = env.BRANCH_TO_BUILD
+                    echo "Checking out branch: ${branchToCheckout}"
+                    
+                    // Get the repository URL from SCM
+                    def repoUrl = scm.userRemoteConfigs[0].url
+                    def credentialsId = scm.userRemoteConfigs[0].credentialsId
+                    
+                    // Validate branch exists before checkout
+                    def branchExists = sh(
+                        script: "git ls-remote --heads ${repoUrl} | grep -q 'refs/heads/${branchToCheckout}' || echo 'NOT_FOUND'",
+                        returnStatus: true
+                    )
+                    
+                    if (branchExists != 0) {
+                        echo "WARNING: Branch '${branchToCheckout}' may not exist in repository"
+                        echo "Attempting checkout anyway..."
+                    }
+                    
+                    checkout([
+                        $class: 'GitSCM',
+                        branches: [[name: "*/${branchToCheckout}"]],
+                        doGenerateSubmoduleConfigurations: false,
+                        extensions: [],
+                        userRemoteConfigs: [[
+                            url: repoUrl,
+                            credentialsId: credentialsId ?: ''
+                        ]]
+                    ])
+                    
+                    // Display checked out branch and verify
+                    sh """
+                        echo "=== Checkout Verification ==="
+                        git branch -v
+                        echo ""
+                        echo "Current commit:"
+                        git log -1 --oneline
+                        echo ""
+                        echo "Branch: \$(git rev-parse --abbrev-ref HEAD)"
+                    """
+                }
             }
         }
         
@@ -69,6 +198,18 @@ pipeline {
                     echo "Testing final connectivity..."
                     curl -i http://$HOST:8080 || exit 1
                     curl -i http://$HOST:8080/api/api-docs || exit 1
+                '''
+            }
+        }
+        
+        stage('Verify Volume Mounts') {
+            steps {
+                echo 'Verifying backend volume mounts...'
+                sh '''
+                    # Check if protected site files are accessible in backend container
+                    docker compose exec -T backend ls -la /app/protected_site/ || echo "Directory listing failed"
+                    docker compose exec -T backend test -f /app/protected_site/index.html && echo "✅ index.html exists" || echo "❌ index.html missing"
+                    docker compose exec -T backend env | grep PROTECTED_DIR || echo "PROTECTED_DIR not set"
                 '''
             }
         }
