@@ -190,65 +190,35 @@ pipeline {
             steps {
                 echo 'Starting services...'
                 sh '''
+                    # Docker Compose will handle dependencies automatically:
+                    # 1. Start db and wait for it to be healthy
+                    # 2. Start backend (depends on db being healthy)
+                    # 3. Start frontend
                     docker compose up -d
                     
-                    # Wait a moment for containers to start
-                    sleep 5
+                    # Wait for all services to be running
+                    echo "Waiting for all services to start..."
+                    sleep 10
                     
                     # Check container status
                     echo "=== Container Status ==="
                     docker compose ps
                     echo ""
                     
-                    # Check backend logs for errors
-                    echo "=== Backend Logs (last 20 lines) ==="
-                    docker compose logs --tail=20 backend || echo "Could not get backend logs"
-                    echo ""
-                    
-                    # Wait for backend to be ready
-                    echo "Waiting for backend to be ready..."
-                    BACKEND_READY=false
-                    for i in 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26 27 28 29 30; do
-                        # Check if backend container is running
-                        if ! docker compose ps backend | grep -q "Up"; then
-                            echo "Backend container is not running!"
-                            docker compose logs --tail=50 backend
-                            exit 1
-                        fi
-                        
-                        # Check if backend is responding
-                        if docker compose exec -T backend python -c "import urllib.request; urllib.request.urlopen('http://localhost:8000/api-docs').read()" 2>/dev/null; then
-                            echo "✅ Backend is ready!"
-                            BACKEND_READY=true
-                            break
-                        fi
-                        echo "Waiting for backend... ($i/30)"
-                        sleep 2
-                    done
-                    
-                    if [ "$BACKEND_READY" != "true" ]; then
-                        echo "❌ Backend failed to become ready!"
-                        echo "Backend logs:"
+                    # Verify all containers are running
+                    if ! docker compose ps | grep -q "Up.*backend"; then
+                        echo "❌ Backend container is not running!"
                         docker compose logs --tail=50 backend
-                        echo "Backend container status:"
-                        docker compose ps backend
                         exit 1
                     fi
                     
-                    # Verify frontend can resolve backend hostname
-                    echo "Verifying frontend can resolve backend hostname..."
-                    docker compose exec -T frontend nslookup backend || docker compose exec -T frontend getent hosts backend || echo "DNS resolution check failed (may still work)"
+                    if ! docker compose ps | grep -q "Up.*frontend"; then
+                        echo "❌ Frontend container is not running!"
+                        docker compose logs --tail=50 frontend
+                        exit 1
+                    fi
                     
-                    # Test connectivity from frontend to backend
-                    echo "Testing connectivity from frontend to backend..."
-                    docker compose exec -T frontend wget -q --spider http://backend:8000/api-docs && echo "✅ Frontend can reach backend" || echo "⚠️ Frontend cannot reach backend (may need more time)"
-                    
-                    # Wait a bit more for frontend to connect to backend
-                    sleep 3
-                    
-                    echo ""
-                    echo "=== Final Service Status ==="
-                    docker compose ps --format "table {{.Service}}\t{{.Status}}\t{{.Ports}}"
+                    echo "✅ All containers are running"
                 '''
             }
         }
@@ -257,101 +227,71 @@ pipeline {
             steps {
                 echo 'Checking service health...'
                 sh '''
-                    # Detect host IP - try multiple methods
+                    # Detect host IP for external access
                     if command -v ip >/dev/null 2>&1; then
-                        # Linux - get default gateway
                         HOST=$(ip route | grep default | awk '{print $3}' | head -1)
                     elif command -v route >/dev/null 2>&1; then
-                        # macOS/Linux fallback
                         HOST=$(route -n get default 2>/dev/null | grep gateway | awk '{print $2}' | head -1)
                     else
-                        # Fallback to Docker gateway
                         HOST="172.17.0.1"
                     fi
                     
-                    # If still empty, use localhost
                     if [ -z "$HOST" ]; then
                         HOST="localhost"
                     fi
                     
                     echo "Using host: $HOST"
                     
-                    # First, verify backend is accessible directly
-                    echo "Checking backend directly..."
+                    # Verify backend is responding
+                    echo "Checking backend..."
                     for i in 1 2 3 4 5 6 7 8 9 10; do
                         if docker compose exec -T backend python -c "import urllib.request; urllib.request.urlopen('http://localhost:8000/api-docs').read()" 2>/dev/null; then
-                            echo "✅ Backend is responding directly"
+                            echo "✅ Backend is responding"
                             break
                         fi
-                        echo "Waiting for backend direct access... ($i/10)"
+                        if [ $i -eq 10 ]; then
+                            echo "❌ Backend health check failed"
+                            docker compose logs --tail=30 backend
+                            exit 1
+                        fi
                         sleep 2
                     done
                     
-                    # Wait for frontend (nginx) which proxies to backend
+                    # Verify frontend is accessible
                     echo "Checking frontend..."
-                    for i in 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26 27 28 29 30; do
+                    for i in 1 2 3 4 5 6 7 8 9 10; do
                         if curl -sf --connect-timeout 5 http://$HOST:8080 >/dev/null 2>&1; then
-                            echo "✅ Frontend is ready!"
+                            echo "✅ Frontend is accessible"
                             break
                         fi
-                        echo "Waiting for frontend on $HOST:8080... ($i/30)"
+                        if [ $i -eq 10 ]; then
+                            echo "❌ Frontend health check failed"
+                            docker compose logs --tail=30 frontend
+                            exit 1
+                        fi
                         sleep 2
                     done
                     
-                    # Wait for API via nginx proxy
-                    echo "Checking backend via nginx proxy..."
-                    PROXY_READY=false
-                    for i in 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26 27 28 29 30; do
+                    # Verify backend API via proxy
+                    echo "Checking backend API via proxy..."
+                    for i in 1 2 3 4 5 6 7 8 9 10; do
                         if curl -sf --connect-timeout 5 http://$HOST:8080/api/api-docs >/dev/null 2>&1; then
-                            echo "✅ Backend API is accessible via proxy!"
-                            PROXY_READY=true
+                            echo "✅ Backend API is accessible via proxy"
                             break
                         fi
-                        echo "Waiting for backend API on $HOST:8080/api... ($i/30)"
-                        
-                        # Debug: Check nginx error logs if proxy fails
-                        if [ $i -eq 10 ] || [ $i -eq 20 ]; then
-                            echo "Debug: Checking nginx logs..."
-                            docker compose logs --tail=20 frontend | grep -i error || echo "No errors in nginx logs"
-                            echo "Debug: Checking if backend is still running..."
-                            docker compose ps backend
-                            echo "Debug: Testing backend directly from frontend container..."
-                            docker compose exec -T frontend wget -q -O- http://backend:8000/api-docs 2>&1 | head -5 || echo "Frontend cannot reach backend"
+                        if [ $i -eq 10 ]; then
+                            echo "❌ Backend API proxy check failed"
+                            echo "Nginx logs:"
+                            docker compose logs --tail=30 frontend
+                            echo "Backend logs:"
+                            docker compose logs --tail=30 backend
+                            exit 1
                         fi
                         sleep 2
                     done
                     
                     echo ""
-                    echo "Testing final connectivity..."
-                    echo "Frontend:"
-                    curl -i http://$HOST:8080 || echo "❌ Frontend check failed"
-                    echo ""
-                    echo "Backend API via proxy:"
-                    PROXY_TEST=$(curl -i http://$HOST:8080/api/api-docs 2>&1)
-                    echo "$PROXY_TEST"
-                    
-                    if [ "$PROXY_READY" != "true" ]; then
-                        echo ""
-                        echo "❌ Backend API proxy check failed!"
-                        echo "Debugging information:"
-                        echo "--- Nginx logs (last 30 lines) ---"
-                        docker compose logs --tail=30 frontend
-                        echo ""
-                        echo "--- Backend logs (last 30 lines) ---"
-                        docker compose logs --tail=30 backend
-                        echo ""
-                        echo "--- Container status ---"
-                        docker compose ps
-                        echo ""
-                        echo "--- Testing backend from frontend container ---"
-                        docker compose exec -T frontend wget -q -O- http://backend:8000/api-docs 2>&1 || echo "Failed to reach backend from frontend"
-                        exit 1
-                    fi
-                    
-                    # Verify backend container can reach itself
-                    echo ""
-                    echo "Verifying backend container connectivity..."
-                    docker compose exec -T backend python -c "import urllib.request; print('Backend self-check:', urllib.request.urlopen('http://localhost:8000/api-docs').getcode())" || echo "❌ Backend self-check failed"
+                    echo "✅ All health checks passed"
                 '''
             }
         }
