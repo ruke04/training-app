@@ -1,6 +1,7 @@
 
 import os
 import base64
+import logging
 from typing import Optional
 
 from fastapi import FastAPI, HTTPException, Depends, Header, Query, Cookie, Security
@@ -15,6 +16,8 @@ from sqlalchemy.orm import Session
 from .database import Base, engine, get_db
 from .models import User
 from .auth import hash_password, verify_password, create_access_token, decode_access_token
+
+logger = logging.getLogger(__name__)
 
 
 app = FastAPI(
@@ -397,8 +400,31 @@ def protected_root(
     user = _validate_token_from_header_or_query_or_cookie(authorization, token, auth_token, db)
     base_dir = os.getenv("PROTECTED_DIR", "/app/protected_site")
     index_path = os.path.join(base_dir, "index.html")
+    
+    # Better error handling with detailed logging
+    logger.info(f"Looking for protected site at: {index_path}")
+    logger.info(f"PROTECTED_DIR env var: {os.getenv('PROTECTED_DIR')}")
+    
+    if not os.path.exists(base_dir):
+        logger.error(f"Protected directory does not exist: {base_dir}")
+        raise HTTPException(
+            status_code=500, 
+            detail=f"Protected directory not found: {base_dir}. Check volume mount."
+        )
+    
     if not os.path.exists(index_path):
-        raise HTTPException(status_code=404, detail="Protected file not found")
+        # List directory contents for debugging
+        try:
+            contents = os.listdir(base_dir)
+            logger.error(f"index.html not found in {base_dir}. Contents: {contents}")
+        except Exception as e:
+            logger.error(f"Could not list directory {base_dir}: {e}")
+        
+        raise HTTPException(
+            status_code=404, 
+            detail=f"Protected file not found at {index_path}. Directory exists but index.html is missing."
+        )
+    
     resp = FileResponse(index_path, media_type="text/html")
     # Prefer the freshest token (query/header) for cookie value
     cookie_token = token or (authorization.split(" ", 1)[1] if authorization.startswith("Bearer ") else auth_token)
