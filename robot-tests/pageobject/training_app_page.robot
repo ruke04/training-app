@@ -22,3 +22,4 @@ ${DELETE_BTN}                   //button[text()="Delete User"]
 ${DELETE_NOTE}                  //*[@id="confirmModal"]/div
 ${DELETE_CONFIRM}               //button[text()="Confirm"]
 ${DELETE_MY_ACCOUNT}            //button[@onclick='deleteAccount()']
+${ABOUT_US_BUTTON}               //header//nav//a[normalize-space()='About Us']
