@@ -1,6 +1,20 @@
 pipeline {
     agent any
     
+    parameters {
+        // Branch selection - use choice dropdown or custom branch name
+        choice(
+            name: 'BRANCH',
+            choices: ['Master'],
+            description: 'Select branch to build from common branches'
+        )
+        string(
+            name: 'BRANCH_CUSTOM',
+            defaultValue: '',
+            description: 'Or enter a custom branch name (leave empty to use BRANCH selection above)'
+        )
+    }
+    
     environment {
         COMPOSE_PROJECT_NAME = 'training-app'
         DOCKER_BUILDKIT = '1'
@@ -14,61 +28,137 @@ pipeline {
     stages {
         stage('Checkout') {
             steps {
-                echo 'Checking out source code...'
-                checkout scm
-            }
-        }
-        
-        stage('Build Docker Images') {
-            steps {
-                echo 'Building Docker images...'
-                sh 'docker compose build --no-cache'
+                script {
+                    // Determine which branch to checkout
+                    def selectedBranch = params.BRANCH
+                    def customBranch = params.BRANCH_CUSTOM
+                    
+                    // Validate and set branch (handle null, empty, or "null" string)
+                    def branchToCheckout = null
+                    
+                    // Use custom branch if provided, otherwise use selected branch from dropdown
+                    if (customBranch && customBranch.trim() && customBranch != 'null') {
+                        branchToCheckout = customBranch.trim()
+                        echo "Using custom branch: ${branchToCheckout}"
+                    } else if (selectedBranch && selectedBranch.trim() && selectedBranch != 'null') {
+                        branchToCheckout = selectedBranch.trim()
+                        echo "Using selected branch: ${branchToCheckout}"
+                    } else {
+                        // Default to main or Master if no valid branch specified
+                        echo "WARNING: No valid branch specified. Checking available branches..."
+                        def repoUrl = scm.userRemoteConfigs[0].url
+                        def branches = sh(
+                            script: "git ls-remote --heads ${repoUrl} | sed 's/.*refs\\/heads\\///' | sort",
+                            returnStdout: true
+                        ).trim().split('\n')
+                        
+                        // Try main first, then Master, then first available branch
+                        if (branches.contains('main')) {
+                            branchToCheckout = 'main'
+                        } else if (branches.contains('Master')) {
+                            branchToCheckout = 'Master'
+                        } else if (branches.size() > 0) {
+                            branchToCheckout = branches[0]
+                        } else {
+                            error("No branches found in repository and no branch specified!")
+                        }
+                        echo "Using default branch: ${branchToCheckout}"
+                    }
+                    
+                    echo "Checking out branch: ${branchToCheckout}"
+                    
+                    // Get the repository URL from SCM
+                    def repoUrl = scm.userRemoteConfigs[0].url
+                    def credentialsId = scm.userRemoteConfigs[0].credentialsId
+                    
+                    // Validate branch exists before checkout
+                    def branchExists = sh(
+                        script: "git ls-remote --heads ${repoUrl} | grep -q 'refs/heads/${branchToCheckout}' || echo 'NOT_FOUND'",
+                        returnStatus: true
+                    )
+                    
+                    if (branchExists != 0) {
+                        error("Branch '${branchToCheckout}' does not exist in repository. Please select a valid branch.")
+                    }
+                    
+                    checkout([
+                        $class: 'GitSCM',
+                        branches: [[name: "*/${branchToCheckout}"]],
+                        doGenerateSubmoduleConfigurations: false,
+                        extensions: [],
+                        userRemoteConfigs: [[
+                            url: repoUrl,
+                            credentialsId: credentialsId ?: ''
+                        ]]
+                    ])
+                    
+                    // Display checked out branch and verify
+                    sh """
+                        echo "=== Checkout Verification ==="
+                        git branch -v
+                        echo ""
+                        echo "Current commit:"
+                        git log -1 --oneline
+                        echo ""
+                        echo "Branch: \$(git rev-parse --abbrev-ref HEAD)"
+                    """
+                }
             }
         }
         
         stage('Start Services') {
             steps {
-                echo 'Starting services...'
+                echo 'Building and starting services...'
                 sh '''
-                    docker compose up -d
-                    sleep 10
+                    # Get the host path for volume mounts (Jenkins runs in Docker)
+                    JENKINS_HOST_PATH=$(docker inspect jenkins --format '{{range .Mounts}}{{if eq .Destination "/var/jenkins_home"}}{{.Source}}{{end}}{{end}}')
+                    JOB_DIR=$(echo "$JOB_NAME" | tr '/' '_')
+                    HOST_WORKSPACE="${JENKINS_HOST_PATH}/workspace/${JOB_DIR}"
+                    
+                    # Set the protected site path for docker-compose
+                    export PROTECTED_SITE_PATH="${HOST_WORKSPACE}/frontend/hidden-site"
+                    echo "Protected site path: $PROTECTED_SITE_PATH"
+                    
+                    docker compose up -d --build
+                    
+                    echo "Waiting for services to be healthy..."
+                    
+                    # Wait for DB to be healthy
+                    echo "Checking database..."
+                    for i in $(seq 1 30); do
+                        if docker compose exec -T db pg_isready -U app -d training > /dev/null 2>&1; then
+                            echo "✅ Database is ready"
+                            break
+                        fi
+                        [ $i -eq 30 ] && echo "❌ Database not ready" && exit 1
+                        sleep 2
+                    done
+                    
+                    # Wait for Backend API to be healthy (check inside container)
+                    echo "Checking backend..."
+                    for i in $(seq 1 30); do
+                        if docker compose exec -T backend python -c "import urllib.request; urllib.request.urlopen('http://localhost:8000/api-docs')" > /dev/null 2>&1; then
+                            echo "✅ Backend is ready"
+                            break
+                        fi
+                        [ $i -eq 30 ] && echo "❌ Backend not ready" && exit 1
+                        sleep 2
+                    done
+                    
+                    # Wait for Frontend (nginx) to be healthy (check inside container)
+                    #echo "Checking frontend..."
+                    #for i in $(seq 1 30); do
+                    #    if docker compose exec -T frontend wget -q --spider http://localhost:80 > /dev/null 2>&1; then
+                    #        echo "✅ Frontend is ready"
+                    #        break
+                    #    fi
+                    #    [ $i -eq 30 ] && echo "❌ Frontend not ready" && exit 1
+                    #    sleep 2
+                    #done
+                    
+                    echo ""
+                    echo "All services are healthy!"
                     docker compose ps
-                '''
-            }
-        }
-        
-        stage('Health Check') {
-            steps {
-                echo 'Checking service health...'
-                sh '''
-                    # Use Docker gateway IP (default for Docker Desktop)
-                    HOST="172.17.0.1"
-                    
-                    echo "Using host: $HOST"
-                    
-                    # Wait for frontend (nginx) which proxies to backend
-                    for i in 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26 27 28 29 30; do
-                        if curl -sf --connect-timeout 5 http://$HOST:8080 >/dev/null 2>&1; then
-                            echo "Frontend is ready!"
-                            break
-                        fi
-                        echo "Waiting for frontend on $HOST:8080... ($i/30)"
-                        sleep 2
-                    done
-                    
-                    # Wait for API via nginx proxy
-                    for i in 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26 27 28 29 30; do
-                        if curl -sf --connect-timeout 5 http://$HOST:8080/api/api-docs >/dev/null 2>&1; then
-                            echo "Backend API is ready!"
-                            break
-                        fi
-                        echo "Waiting for backend API on $HOST:8080/api... ($i/30)"
-                        sleep 2
-                    done
-                    
-                    echo "Testing final connectivity..."
-                    curl -i http://$HOST:8080 || exit 1
-                    curl -i http://$HOST:8080/api/api-docs || exit 1
                 '''
             }
         }
