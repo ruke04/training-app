@@ -2,73 +2,16 @@ pipeline {
     agent any
     
     parameters {
-        // Dynamic branch selection using Active Choices Plugin
-        // Install "Active Choices Plugin" in Jenkins: Manage Jenkins -> Plugins -> Available -> Search "Active Choices"
-        // This fetches branches from the repository URL configured in the job's SCM settings
-        activeChoice(
+        // Branch selection - use choice dropdown or custom branch name
+        choice(
             name: 'BRANCH',
-            description: 'Select branch to build (dynamically fetched from repository). Defaults to "Master" if not selected.',
-            script: [
-                $class: 'GroovyScript',
-                fallbackScript: [
-                    classpath: [],
-                    sandbox: false,
-                    script: 'return ["main", "Master", "develop", "staging"]'
-                ],
-                script: [
-                    classpath: [],
-                    sandbox: false,
-                    script: '''
-                        import jenkins.model.Jenkins
-                        import hudson.model.*
-                        import hudson.plugins.git.*
-                        
-                        try {
-                            // Get the current build's job
-                            def build = Thread.currentThread().executable
-                            if (build != null) {
-                                def project = build.getParent()
-                                if (project != null) {
-                                    def scm = project.getScm()
-                                    if (scm instanceof GitSCM) {
-                                        def remoteConfigs = scm.getUserRemoteConfigs()
-                                        if (remoteConfigs != null && !remoteConfigs.isEmpty()) {
-                                            def repoUrl = remoteConfigs[0].getUrl()
-                                            
-                                            // Fetch branches using git ls-remote
-                                            def proc = ["git", "ls-remote", "--heads", repoUrl].execute()
-                                            proc.waitFor()
-                                            
-                                            if (proc.exitValue() == 0) {
-                                                def branches = []
-                                                proc.text.eachLine { line ->
-                                                    def matcher = line =~ /refs\\/heads\\/(.+)$/
-                                                    if (matcher) {
-                                                        branches.add(matcher.group(1))
-                                                    }
-                                                }
-                                                if (!branches.isEmpty()) {
-                                                    return branches.sort()
-                                                }
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                        } catch (Exception e) {
-                            // Fallback if fetch fails
-                        }
-                        // Fallback to common branch names
-                        return ["main", "Master", "develop", "staging"]
-                    '''
-                ]
-            ]
+            choices: ['Master', 'main', 'master', 'develop', 'staging'],
+            description: 'Select branch to build from common branches'
         )
-        // Fallback string parameter if Active Choices plugin is not available or fails
         string(
-            name: 'BRANCH_FALLBACK',
+            name: 'BRANCH_CUSTOM',
             defaultValue: '',
-            description: 'If dropdown above is empty or doesn\'t work, enter branch name here manually'
+            description: 'Or enter a custom branch name (leave empty to use BRANCH selection above)'
         )
     }
     
@@ -105,14 +48,15 @@ pipeline {
                 script {
                     // Determine which branch to checkout
                     def selectedBranch = params.BRANCH
-                    def fallbackBranch = params.BRANCH_FALLBACK
+                    def customBranch = params.BRANCH_CUSTOM
                     
                     // Validate and set branch (handle null, empty, or "null" string)
                     def branchToCheckout = null
                     
-                    if (fallbackBranch && fallbackBranch.trim() && fallbackBranch != 'null') {
-                        branchToCheckout = fallbackBranch.trim()
-                        echo "Using fallback branch: ${branchToCheckout}"
+                    // Use custom branch if provided, otherwise use selected branch from dropdown
+                    if (customBranch && customBranch.trim() && customBranch != 'null') {
+                        branchToCheckout = customBranch.trim()
+                        echo "Using custom branch: ${branchToCheckout}"
                     } else if (selectedBranch && selectedBranch.trim() && selectedBranch != 'null') {
                         branchToCheckout = selectedBranch.trim()
                         echo "Using selected branch: ${branchToCheckout}"
