@@ -7,14 +7,13 @@ Suite Teardown    Close Browser
 *** Test Cases ***
 
 View Profile While Logged In
-  [Documentation]  verify the User is able to log in succesful
-  Run Keyword And Ignore Error  Register New User    ruke    12345
-  Enter Login Username    ruke
+  [Documentation]  verify the User is able to log succesfully
+  Enter Login Username    werockglobal
   Enter Login Password    12345
   Click Login Button
   Wait For Elements State  text=Login successful  visible  timeout=10s
   Click Refresh Profile Button
-  Get Text  //*[@id="profile_display"]  ==  👤 ruke\nLogged in
+  Get Text  //*[@id="profile_display"]  ==  👤 werockglobal\nLogged in
 
 View Profile While Logged Out
   [Documentation]  verify the User is logout successful
@@ -24,7 +23,7 @@ View Profile While Logged Out
 
 Profile Display Updates After Login
   [Documentation]  verify the User logged in successful
-  Enter Login Username    ruke
+  Enter Login Username    werockglobal
   Enter Login Password    12345
   Click Login Button   
   Wait For Elements State  text=Login successful  visible  timeout=10s
