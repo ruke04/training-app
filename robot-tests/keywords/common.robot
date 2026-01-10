@@ -79,7 +79,7 @@ Delete All Users From Database
     Log    Delete all users stderr: ${result.stderr}
     Should Be Equal As Integers    ${result.rc}    0    Failed to delete users: ${result.stderr}
 
-Click Open Protected Site
+Click Open Protected Site Button
     Wait For Element To Be Visible   ${OPEN_PROTECTED_SITE_BUTTON}  timeout=10s
     Click  ${OPEN_PROTECTED_SITE_BUTTON}
 
@@ -94,4 +94,8 @@ Click Delete User Button
     Wait For Elements State    ${DELETE_CONFIRM}    visible    timeout=10s
     Wait For Elements State    ${DELETE_CONFIRM}    enabled    timeout=10s
     Click    ${DELETE_CONFIRM}
+
+Click logout Protected Site Button
+    Wait For Element To Be Visible   ${LOGOUT_PROTECTED_SITE_BUTTON}  timeout=10s
+    Click  ${LOGOUT_PROTECTED_SITE_BUTTON}
     
