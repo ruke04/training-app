@@ -98,4 +98,8 @@ Click Delete User Button
 Click logout Protected Site Button
     Wait For Element To Be Visible   ${LOGOUT_PROTECTED_SITE_BUTTON}  timeout=10s
     Click  ${LOGOUT_PROTECTED_SITE_BUTTON}
+
+Click Why Us Button
+    Wait For Element To Be Visible   ${WHY_US_BUTTON}  timeout=10s
+    Click  ${WHY_US_BUTTON}
     

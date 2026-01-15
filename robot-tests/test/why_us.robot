@@ -15,20 +15,7 @@ View Profile While Logged In
   Click Refresh Profile Button
   Get Text  //*[@id="profile_display"]  ==  👤 werockglobal\nLogged in
 
-View Profile While Logged Out
-  [Documentation]  verify the User is logout successful
-  Click Logout Button
-  Click Refresh Profile Button
-  Get Text  //*[@id="me"]  ==  Not logged in
-
-Profile Display Updates After Login
-  [Documentation]  verify the User logged in successful
-  Enter Login Username    werockglobal
-  Enter Login Password    12345
-  Click Login Button   
-  Wait For Elements State  text=Login successful  visible  timeout=10s
-
-Verify logged in user can access protected sites
+Verify logged in user can access Why Us page
   [Documentation]  verify the User can access protected sites after login
   Enter Login Username    werockglobal
   Enter Login Password    12345
@@ -36,11 +23,5 @@ Verify logged in user can access protected sites
   Wait For Elements State  text=Login successful  visible  timeout=10s
   Click Open Protected Site Button
   Get Text  //*[@id="main-content"]/div/div[1]/h1  ==  Strategic\nService\nDelivery 
-
-Verify logged out user cannot access protected sites
-  [Documentation]  verify the User cannot access protected sites after logout
-  Click Logout Protected Site Button
-  Click Refresh Profile Button
-  Get Text  //*[@id="me"]  ==  Not logged in
-  Click Open Protected Site Button
-  Get Text  //*[@id="notification"]  ==  You are not logged in. Please login first.
+  Click Why Us Button
+  Get Text  //*[@id="hero-heading"]  ==  Why Choose EFEWALICOMMS

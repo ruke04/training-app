@@ -22,3 +22,4 @@ ${DELETE_BTN}                   //button[text()="Delete User"]
 ${DELETE_NOTE}                  //*[@id="confirmModal"]/div
 ${DELETE_CONFIRM}               //button[text()="Confirm"]
 ${LOGOUT_PROTECTED_SITE_BUTTON}    //html/body/div[6]/header/div[2]/button
+${WHY_US_BUTTON}                  //html/body/div[6]/header/nav/a[2]
